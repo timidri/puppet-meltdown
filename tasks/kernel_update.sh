@@ -32,6 +32,7 @@ if [ "$PT_force" == "true" ] ; then
   yum_options="--assumeyes"
   if [ "$PT_reboot" == "true" ] ; then
     reboot=true
+  fi
 else
   yum_options="--assumeno"
 fi
@@ -39,6 +40,6 @@ fi
 echo $yum_options
 yum update kernel $yum_options
 
-if [ -n "$reboot" ]; 
+if [ -n "$reboot" ]; then
     echo "Rebooting ..."
 fi
