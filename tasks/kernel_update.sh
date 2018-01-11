@@ -27,11 +27,18 @@
 # Learn more at: https://puppet.com/docs/bolt/latest/task_metadata.html
 #
 
+reboot=""
 if [ "$PT_force" == "true" ] ; then
   yum_options="--assumeyes"
+  if [ "$PT_reboot" == "true" ] ; then
+    reboot=true
 else
   yum_options="--assumeno"
 fi
 
 echo $yum_options
 yum update kernel $yum_options
+
+if [ -n "$reboot" ]; 
+    echo "Rebooting ..."
+fi
