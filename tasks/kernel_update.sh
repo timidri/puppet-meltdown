@@ -34,4 +34,4 @@ else
 fi
 
 echo $yum_options
-#yum update kernel $yum_options
+yum update kernel $yum_options
