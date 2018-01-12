@@ -1,4 +1,4 @@
-Facter.add('meltdown') do
+Facter.add('meltdown_win') do
     confine :osfamily => :windows
     setcode do
         sysroot = ENV['SystemRoot']
