@@ -1003,3 +1003,6 @@ If ($hotfix) {
         Get-WUInstall -KBArticleID $hotfix -ListOnly
     }
 }
+Else {
+	Write-Output "No hotfix available for this operating system version!"
+}
