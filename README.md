@@ -26,7 +26,7 @@ meltdown provides the following facts:
 ### meltdown (Linux)
 
 This is a json object of the following form, as returned from ``spectre-meltdown-checker.sh``
-``
+```
 [
   {
     "NAME": "SPECTRE VARIANT 1",
@@ -47,7 +47,7 @@ This is a json object of the following form, as returned from ``spectre-meltdown
     "INFOS": "PTI mitigates the vulnerability"
   }
 ]
-``
+```
 ### CVE-2017-5754 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
@@ -59,6 +59,14 @@ This facts contains the value `true` if the vulnerability is detected and `false
 ### CVE-2017-5715 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
+
+Meltdown provides the following tasks:
+
+### meltdown::kernel_upgrade
+
+This task offers 2 parameters:
+*force*  : if true, the kernel upgrade is really performed, otherwise it only outputs what it would have done
+*reboot* : if true, reboots the machine after update, but only if *force* is also true
 
 ## Limitations
 

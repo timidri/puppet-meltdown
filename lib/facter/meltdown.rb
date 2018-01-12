@@ -33,6 +33,7 @@ Facter.add('meltdown') do
     setcode do
       os_family = Facter.value(:osfamily)
       if Facter.value(:osfamily) == 'Darwin'
+        # just generate some output for testing
         value = JSON.parse(get_json)
       else
         # get the script path relative to facter Ruby program
