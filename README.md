@@ -21,9 +21,11 @@ The only thing needed is to install the module on the puppetmaster (for instance
 
 ## Reference
 
+### Facts
+
 meltdown provides the following facts:
 
-### meltdown (Linux)
+#### meltdown (Linux)
 
 This is a json object of the following form, as returned from ``spectre-meltdown-checker.sh``
 ```
@@ -48,25 +50,28 @@ This is a json object of the following form, as returned from ``spectre-meltdown
   }
 ]
 ```
-### cve-2017-5754 (Linux)
+#### cve-2017-5754 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
 
-### cve-2017-5753 (Linux)
+#### cve-2017-5753 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
 
-### cve-2017-5715 (Linux)
+#### cve-2017-5715 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
+
+### Tasks
 
 Meltdown provides the following tasks:
 
-### meltdown::kernel_upgrade
+#### meltdown::kernel_upgrade
 
 This task offers 2 parameters:
-*force*  : if true, the kernel upgrade is really performed, otherwise it only outputs what it would have done
-*reboot* : if true, reboots the machine after update, but only if *force* is also true
+
+* **force**  : if true, the kernel upgrade is really performed, otherwise it only outputs what it would have done
+* **reboot** : if true, reboots the machine after update, but only if *force* is also true
 
 ## Limitations
 
