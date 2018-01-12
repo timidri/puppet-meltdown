@@ -2,7 +2,6 @@
   "puppet_task_version": 1,
   "description": "A task for updating Windows with patches for Speculation Control",
   "input_method": "powershell",
-  "supports_noop": false,
   "parameters": {
     "force": {
       "description": "If true, the windows update is performed, otherwise the output of what would be updated is printed",
