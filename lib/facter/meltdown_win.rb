@@ -5,8 +5,8 @@ Facter.add('meltdown') do
       value = nil
       sysroot = ENV['SystemRoot']
       programdata = ENV['ProgramData']
-      powershell = "#{sysroot}\system32\WindowsPowerShell\v1.0\powershell.exe"
-      checker_script = "#{programdata}\PuppetLabs\puppet\cache\lib\spectre-meltdown-checker.ps1"
+      powershell = "#{sysroot}\\system32\\WindowsPowerShell\\v1.0\\powershell.exe"
+      checker_script = "#{programdata}\\PuppetLabs\\puppet\\cache\\lib\\spectre-meltdown-checker.ps1"
       value = Facter::Core::Execution.execute(%Q{#{powershell} -ExecutionPolicy Remote -file "#{checker_script}"})
     end
     value
