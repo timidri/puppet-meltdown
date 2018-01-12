@@ -992,8 +992,9 @@ switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
 
 If ($hotfix -eq $null) {
     Write-Output "No hotfix available for this operating system version!"
-}
-Else {
+} Else {
+    $check = Get-WUInstall -KBArticleID $hotfix -ListOnly
+    if ($check -eq $null) { Throw "The hotfix $hotfix is not being offered to this system by the update server!" }
 	If ($force) {
         If ($reboot) {
             Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
