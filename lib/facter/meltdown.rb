@@ -32,9 +32,9 @@ Facter.add('meltdown') do
       # EOT
 
       value.each do | item |
-        puts item["CVE"]
+        puts item["CVE"].downcase
         puts item["VULNERABLE"]
-        Facter.add(item["CVE"]) do
+        Facter.add(item["CVE"].downcase) do
           setcode do
             item["VULNERABLE"]
           end
