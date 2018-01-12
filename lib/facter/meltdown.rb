@@ -31,16 +31,19 @@ Facter.add('meltdown') do
       # ]
       # EOT
 
-      value.each do | item |
-        puts item["CVE"].downcase
-        puts item["VULNERABLE"]
-        Facter.add(item["CVE"].downcase) do
-          setcode do
-            item["VULNERABLE"]
-          end
-        end
-      end
-    end
     value
-    # JSON.pretty_generate(value)
+    end
+end
+
+# generate CVE-specific facts
+meltdown_hash = JSON(Facter.value('meltdown'))
+
+meltdown_hash.each do | item |
+  # puts item["CVE"].downcase
+  # puts item["VULNERABLE"]
+  Facter.add(item["CVE"].downcase) do
+    setcode do
+      item["VULNERABLE"]
+    end
+  end
 end
