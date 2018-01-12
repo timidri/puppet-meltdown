@@ -32,8 +32,8 @@ Facter.add('meltdown') do
       # EOT
 
       value.each do | item |
-        # puts item["CVE"]
-        # puts item["VULNERABLE"]
+        puts item["CVE"]
+        puts item["VULNERABLE"]
         Facter.add(item["CVE"]) do
           setcode do
             item["VULNERABLE"]
