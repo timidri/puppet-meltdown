@@ -994,7 +994,10 @@ If ($hotfix -eq $null) {
     Write-Output "No hotfix available for this operating system version!"
 } Else {
     $check = Get-WUInstall -KBArticleID $hotfix -ListOnly
-    if ($check -eq $null) { Throw "The hotfix $hotfix is not being offered to this system by the update server!" }
+    if ($check -eq $null) {
+		Write-Error "The hotfix $hotfix is not being offered to this system by the update server!"
+		Exit 1
+		}
 	If ($force) {
         If ($reboot) {
             Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
