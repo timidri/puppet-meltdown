@@ -1,4 +1,4 @@
-Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\SpeculationControl.psd1
+Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\meltdown\SpeculationControl.psd1
 function global:Write-Host() {}
 $SpeculationControl = Get-SpeculationControlSettings
 
