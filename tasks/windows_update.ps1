@@ -990,8 +990,11 @@ switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
     'Microsoft Windows Server, version 1709*' { $hotfix = 'KB4056892' }
 }
 
-If ($hotfix) {
-    If ($force) {
+If ($hotfix -eq $null) {
+    Write-Output "No hotfix available for this operating system version!"
+}
+Else {
+	If ($force) {
         If ($reboot) {
             Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
         }
@@ -1002,7 +1005,4 @@ If ($hotfix) {
     Else {
         Get-WUInstall -KBArticleID $hotfix -ListOnly
     }
-}
-Else {
-	Write-Output "No hotfix available for this operating system version!"
 }
