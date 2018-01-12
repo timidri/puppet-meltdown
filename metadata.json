@@ -1,8 +1,8 @@
 {
-  "name": "dimitritischenko-meltdown",
+  "name": "puppet-meltdown",
   "version": "0.1.0",
-  "author": "dimitritischenko",
-  "summary": "",
+  "author": "Dimitri Tischenko",
+  "summary": "Detect and remediate meltdown / spectre vulnerability",
   "license": "Apache-2.0",
   "source": "https://github.com/timidri/puppet-meltdown_spectre",
   "dependencies": [

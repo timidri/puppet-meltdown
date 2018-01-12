@@ -1,6 +1,6 @@
 require 'json'
 
-def get_json
+def json_stub
   value = <<-EOT
   [
     {
@@ -27,33 +27,32 @@ def get_json
 end
 
 Facter.add('meltdown') do
-    # confine :kernel => :linux
-    value = ""
-    checker_script = ""
-    setcode do
-      os_family = Facter.value(:osfamily)
-      if Facter.value(:osfamily) == 'Darwin'
-        # just generate some output for testing
-        value = JSON.parse(get_json)
-      else
-        # get the script path relative to facter Ruby program
-        checker_script = File.join(File.expand_path(File.dirname(__FILE__)), '..', 
-          'meltdown', 'spectre-meltdown-checker.sh')
-        value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
-      end
-    JSON.pretty_generate(value)
+  # confine :kernel => :linux
+  value = ''
+  checker_script = ''
+  setcode do
+    if Facter.value(:osfamily) == 'Darwin'
+      # just generate some output for testing
+      value = JSON.parse(json_stub)
+    else
+      # get the script path relative to facter Ruby program
+      checker_script = File.join(File.expand_path(File.dirname(__FILE__)), '..',
+                                 'meltdown', 'spectre-meltdown-checker.sh')
+      value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
     end
+    JSON.pretty_generate(value)
+  end
 end
 
 # generate CVE-specific facts
 meltdown_hash = JSON.parse(Facter.value('meltdown'))
 
-meltdown_hash.each do | item |
+meltdown_hash.each do |item|
   # puts item["CVE"].downcase
   # puts item["VULNERABLE"]
-  Facter.add(item["CVE"].downcase) do
+  Facter.add(item['CVE'].downcase) do
     setcode do
-      item["VULNERABLE"]
+      item['VULNERABLE']
     end
   end
 end
