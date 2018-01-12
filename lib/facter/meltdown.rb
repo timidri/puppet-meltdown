@@ -27,7 +27,7 @@ def json_stub
 end
 
 Facter.add('meltdown') do
-  # confine :kernel => :linux
+  confine :kernel => :linux
   value = ''
   checker_script = ''
   setcode do
@@ -51,6 +51,7 @@ meltdown_hash.each do |item|
   # puts item["CVE"].downcase
   # puts item["VULNERABLE"]
   Facter.add(item['CVE'].downcase) do
+    confine :kernel => :linux    
     setcode do
       item['VULNERABLE']
     end
