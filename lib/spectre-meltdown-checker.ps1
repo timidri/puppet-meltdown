@@ -1,3 +1,5 @@
+Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\SpeculationControl.psd1
+
 $arrCVE = @{}
 switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
     'Microsoft Windows Server 2008 R2*'       { $hotfix = 'KB4056897' }
