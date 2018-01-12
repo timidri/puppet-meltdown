@@ -1,0 +1,16 @@
+{
+    "puppet_task_version": 1,
+    "supports_noop": false,
+    "input_method": "powershell",
+    "description": "A task for updating Windows with patches for Speculation Control",
+    "parameters": {
+      "force": {
+        "description": "If true, the windows update is performed, otherwise the output of what would be updated is printed",
+        "type": "Optional[Boolean]"
+       },
+       "reboot": {
+        "description": "If true, the system is rebooted after the update is performed, but only if force is also true",
+        "type": "Optional[Boolean]"
+       }
+    }
+  }
