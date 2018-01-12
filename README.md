@@ -48,15 +48,15 @@ This is a json object of the following form, as returned from ``spectre-meltdown
   }
 ]
 ```
-### CVE-2017-5754 (Linux)
+### cve-2017-5754 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
 
-### CVE-2017-5753 (Linux)
+### cve-2017-5753 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
 
-### CVE-2017-5715 (Linux)
+### cve-2017-5715 (Linux)
 
 This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
 
