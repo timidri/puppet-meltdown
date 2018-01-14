@@ -40,7 +40,7 @@ update_debian() {
     apt_options='--assume-no'
     if [ "$PT_force" == "true" ] ; then
         apt_options='--assume-yes'
-    end
+    fi
     echo $apt_options
     apt-get update
     apt-get $apt_options install linux-image
