@@ -31,7 +31,7 @@ update_redhat() {
     yum_options='--assumeno'
     if [ "$PT_force" == "true" ] ; then
         yum_options='--assumeyes'
-    end
+    fi
     echo $yum_options
     yum update kernel $yum_options
 }
@@ -41,6 +41,7 @@ update_debian() {
     if [ "$PT_force" == "true" ] ; then
         apt_options='--assume-yes'
     end
+    echo $apt_options
     apt-get update
     apt-get $apt_options install linux-image
 }
