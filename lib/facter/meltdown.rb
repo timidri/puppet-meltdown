@@ -48,8 +48,7 @@ end
 meltdown_hash = JSON.parse(Facter.value('meltdown'))
 
 meltdown_hash.each do |item|
-  # puts item["CVE"].downcase
-  # puts item["VULNERABLE"]
+  # fact names need to be lowercase
   Facter.add(item['CVE'].downcase) do
     confine kernel: 'linux'
     setcode do
