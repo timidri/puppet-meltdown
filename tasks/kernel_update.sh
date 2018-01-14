@@ -28,9 +28,9 @@
 #
 
 update_redhat() {
-    echo "PT_force: $PT_force"
+    echo "PT_force: ${PT_force}"
     yum_options='--assumeno'
-    if [ "$PT_force" == "true" ] ; then
+    if [ "${PT_force}" == "true" ] ; then
         yum_options='--assumeyes'
     fi
     echo $yum_options
@@ -38,9 +38,9 @@ update_redhat() {
 }
 
 update_debian() {
-    echo "PT_force: $PT_force"
+    echo "PT_force: ${PT_force}"
     apt_options='--assume-no'
-    if [ "$PT_force" == "true" ] ; then
+    if [ "${PT_force}" == "true" ] ; then
         apt_options='--assume-yes'
     fi
     echo $apt_options
