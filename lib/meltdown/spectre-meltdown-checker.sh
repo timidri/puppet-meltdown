@@ -8,21 +8,21 @@
 #
 # Stephane Lesimple
 #
-VERSION=0.26
+VERSION=0.29
 
 # Script configuration
 show_usage()
 {
 	cat <<EOF
 	Usage:
-		Live mode:    $0 [options] [--live]
-		Offline mode: $0 [options] [--kernel <vmlinux_file>] [--config <kernel_config>] [--map <kernel_map_file>]
+		Live mode:    `basename $0` [options] [--live]
+		Offline mode: `basename $0` [options] [--kernel <vmlinux_file>] [--config <kernel_config>] [--map <kernel_map_file>]
 
 	Modes:
 		Two modes are available.
 
 		First mode is the "live" mode (default), it does its best to find information about the currently running kernel.
-		To run under this mode, just start the script without any option (you can also use --live explicitely)
+		To run under this mode, just start the script without any option (you can also use --live explicitly)
 
 		Second mode is the "offline" mode, where you can inspect a non-running kernel.
 		You'll need to specify the location of the vmlinux file, and if possible, the corresponding config and System.map files:
@@ -40,6 +40,7 @@ show_usage()
 		--batch nrpe			Produce machine readable output formatted for NRPE
 		--variant [1,2,3]		Specify which variant you'd like to check, by default all variants are checked
 						Can be specified multiple times (e.g. --variant 2 --variant 3)
+
 
 	IMPORTANT:
 	A false sense of security is worse than no security at all.
@@ -66,7 +67,7 @@ in which it runs.
 
 The nature of the discovered vulnerabilities being quite new, the landscape of vulnerable processors can be expected
 to change over time, which is why this script makes the assumption that all CPUs are vulnerable, except if the manufacturer
-explicitely stated otherwise in a verifiable public announcement.
+explicitly stated otherwise in a verifiable public announcement.
 
 This tool has been released in the hope that it'll be useful, but don't use it to jump to conclusions about your security.
 
@@ -102,7 +103,7 @@ __echo()
 		# strip ANSI color codes
 		_msg=$(/bin/echo -e  "$_msg" | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
 	fi
-	# explicitely call /bin/echo to avoid shell builtins that might not take options
+	# explicitly call /bin/echo to avoid shell builtins that might not take options
 	/bin/echo $opt -e "$_msg"
 }
 
@@ -144,21 +145,23 @@ _verbose()
 
 _debug()
 {
-	_echo 3 "(debug) $@"
+	_echo 3 "\033[34m(debug) $@\033[0m"
 }
 
 is_cpu_vulnerable()
 {
 	# param: 1, 2 or 3 (variant)
-	# returns 1 if vulnerable, 0 if not vulnerable, 255 on error
+	# returns 0 if vulnerable, 1 if not vulnerable
+	# (note that in shell, a return of 0 is success)
 	# by default, everything is vulnerable, we work in a "whitelist" logic here.
 	# usage: is_cpu_vulnerable 2 && do something if vulnerable
 	variant1=0
 	variant2=0
 	variant3=0
+
 	if grep -q AMD /proc/cpuinfo; then
-		variant1=0
-		variant2=1
+		# AMD revised their statement about variant2 => vulnerable
+		# https://www.amd.com/en/corporate/speculative-execution
 		variant3=1
 	elif grep -qi 'CPU implementer\s*:\s*0x41' /proc/cpuinfo; then
 		# ARM
@@ -173,28 +176,26 @@ is_cpu_vulnerable()
 			# arch  7? 7? 7     7     7     8     8      8      8
 			if [ "$cpuarch" = 7 ] && echo "$cpupart" | grep -Eq '^0x(c09|c0f|c0e)$'; then
 				# armv7 vulnerable chips
-				variant1=0
-				variant2=0
+				:
 			elif [ "$cpuarch" = 8 ] && echo "$cpupart" | grep -Eq '^0x(d07|d08|d09|d0a)$'; then
 				# armv8 vulnerable chips
-				variant1=0
-				variant2=0
+				:
 			else
 				variant1=1
 				variant2=1
 			fi
 			# for variant3, only A75 is vulnerable
-			if [ "$cpuarch" = 8 -a "$cpupart" = 0xd0a ]; then
-				variant3=0
-			else
+			if ! [ "$cpuarch" = 8 -a "$cpupart" = 0xd0a ]; then
 				variant3=1
 			fi
 		fi
 	fi
+
 	[ "$1" = 1 ] && return $variant1
 	[ "$1" = 2 ] && return $variant2
 	[ "$1" = 3 ] && return $variant3
-	return 255
+	echo "$0: error: invalid variant '$1' passed to is_cpu_vulnerable()" >&2
+	exit 1
 }
 
 show_header()
@@ -290,6 +291,10 @@ while [ -n "$1" ]; do
 		show_header
 		show_usage
 		exit 0
+	elif [ "$1" = "--version" ]; then
+		opt_no_color=1
+		show_header
+		exit 1
 	elif [ "$1" = "--disclaimer" ]; then
 		show_header
 		show_disclaimer
@@ -457,7 +462,8 @@ if [ "$opt_live" = 1 ]; then
 		_warn "To run it as root, you can try the following command: sudo $0"
 		_warn
 	fi
-	_info "Checking for vulnerabilities against live running kernel \033[35m"$(uname -s) $(uname -r) $(uname -v) $(uname -m)"\033[0m"
+	_info "Checking for vulnerabilities against running kernel \033[35m"$(uname -s) $(uname -r) $(uname -v) $(uname -m)"\033[0m"
+	_info "CPU is\033[35m"$(grep '^model name' /proc/cpuinfo | cut -d: -f2 | head -1)"\033[0m"
 
 	# try to find the image of the current running kernel
 	# first, look for the BOOT_IMAGE hint in the kernel cmdline
@@ -499,10 +505,12 @@ if [ "$opt_live" = 1 ]; then
 else
 	_info "Checking for vulnerabilities against specified kernel"
 fi
+
 if [ -n "$opt_kernel" ]; then
 	_verbose "Will use vmlinux image \033[35m$opt_kernel\033[0m"
 else
 	_verbose "Will use no vmlinux image (accuracy might be reduced)"
+	bad_accuracy=1
 fi
 if [ -n "$dumped_config" ]; then
 	_verbose "Will use kconfig \033[35m/proc/config.gz\033[0m"
@@ -510,11 +518,17 @@ elif [ -n "$opt_config" ]; then
 	_verbose "Will use kconfig \033[35m$opt_config\033[0m"
 else
 	_verbose "Will use no kconfig (accuracy might be reduced)"
+	bad_accuracy=1
 fi
 if [ -n "$opt_map" ]; then
 	_verbose "Will use System.map file \033[35m$opt_map\033[0m"
 else
 	_verbose "Will use no System.map file (accuracy might be reduced)"
+	bad_accuracy=1
+fi
+
+if [ "$bad_accuracy" = 1 ]; then
+	_info "We're missing some kernel info (see -v), accuracy might be reduced"
 fi
 
 if [ -e "$opt_kernel" ]; then
@@ -556,7 +570,7 @@ umount_debugfs()
 sys_interface_check()
 {
 	[ "$opt_live" = 1 -a "$opt_no_sysfs" = 0 -a -r "$1" ] || return 1
-	_info_nol "* Checking wheter we're safe according to the /sys interface: "
+	_info_nol "* Checking whether we're safe according to the /sys interface: "
 	if grep -qi '^not affected' "$1"; then
 		# Not affected
 		status=OK
@@ -574,6 +588,7 @@ sys_interface_check()
 		pstatus yellow UNKNOWN "unknown value reported by kernel"
 	fi
 	msg=$(cat "$1")
+	_debug "sys_interface_check: $1=$msg"
 	return 0
 }
 
@@ -602,7 +617,7 @@ check_variant1()
 				status=UNK
 				pstatus yellow UNKNOWN
 			else
-				# here we disassemble the kernel and count the number of occurences of the LFENCE opcode
+				# here we disassemble the kernel and count the number of occurrences of the LFENCE opcode
 				# in non-patched kernels, this has been empirically determined as being around 40-50
 				# in patched kernels, this is more around 70-80, sometimes way higher (100+)
 				# v0.13: 68 found in a 3.10.23-xxxx-std-ipv6-64 (with lots of modules compiled-in directly), which doesn't have the LFENCE patches,
@@ -611,7 +626,7 @@ check_variant1()
 				if [ "$nb_lfence" -lt 70 ]; then
 					msg="only $nb_lfence opcodes found, should be >= 70, heuristic to be improved when official patches become available"
 					status=VULN
-					pstatus yellow UNKNOWN
+					pstatus red NO
 				else
 					msg="$nb_lfence opcodes found, which is >= 70, heuristic to be improved when official patches become available"
 					status=OK
@@ -650,6 +665,7 @@ check_variant2()
 		if [ ! -e /dev/cpu/0/msr ]; then
 			# try to load the module ourselves (and remember it so we can rmmod it afterwards)
 			modprobe msr 2>/dev/null && insmod_msr=1
+			_debug "attempted to load module msr, ret=$insmod_msr"
 		fi
 		if [ ! -e /dev/cpu/0/msr ]; then
 			pstatus yellow UNKNOWN "couldn't read /dev/cpu/0/msr, is msr support enabled in your kernel?"
@@ -668,6 +684,7 @@ check_variant2()
 		if [ "$insmod_msr" = 1 ]; then
 			# if we used modprobe ourselves, rmmod the module
 			rmmod msr 2>/dev/null
+			_debug "attempted to unload module msr, ret=$?"
 		fi
 
 		_info_nol "*   Kernel support for IBRS: "
@@ -685,7 +702,10 @@ check_variant2()
 					pstatus green YES
 					ibrs_supported=1
 					ibrs_enabled=$(cat "$ibrs_file" 2>/dev/null)
+					_debug "ibrs: found $ibrs_file=$ibrs_enabled"
 					break
+				else
+					_debug "ibrs: file $ibrs_file doesn't exist"
 				fi
 			done
 		fi
@@ -693,6 +713,7 @@ check_variant2()
 			if grep -q spec_ctrl "$opt_map"; then
 				pstatus green YES
 				ibrs_supported=1
+				_debug "ibrs: found '*spec_ctrl*' symbol in $opt_map"
 			fi
 		fi
 		if [ "$ibrs_supported" != 1 ]; then
@@ -733,6 +754,7 @@ check_variant2()
 			if grep -q '^CONFIG_RETPOLINE=y' "$opt_config"; then
 				pstatus green YES
 				retpoline=1
+				_debug "retpoline: found "$(grep '^CONFIG_RETPOLINE' "$opt_config")" in $opt_config"
 			else
 				pstatus red NO
 			fi
@@ -822,6 +844,7 @@ check_variant3()
 		if [ -n "$opt_config" ]; then
 			kpti_can_tell=1
 			if grep -Eq '^(CONFIG_PAGE_TABLE_ISOLATION|CONFIG_KAISER)=y' "$opt_config"; then
+				_debug "kpti_support: found option "$(grep -E '^(CONFIG_PAGE_TABLE_ISOLATION|CONFIG_KAISER)=y' "$opt_config")" in $opt_config"
 				kpti_support=1
 			fi
 		fi
@@ -830,6 +853,7 @@ check_variant3()
 			# so we try to find an exported symbol that is part of the PTI patch in System.map
 			kpti_can_tell=1
 			if grep -qw kpti_force_enabled "$opt_map"; then
+				_debug "kpti_support: found kpti_force_enabled in $opt_map"
 				kpti_support=1
 			fi
 		fi
@@ -841,6 +865,7 @@ check_variant3()
 				pstatus yellow UNKNOWN "missing 'strings' tool, please install it, usually it's in the binutils package"
 			else
 				if strings "$vmlinux" | grep -qw nopti; then
+					_debug "kpti_support: found nopti string in $vmlinux"
 					kpti_support=1
 				fi
 			fi
@@ -857,22 +882,31 @@ check_variant3()
 		mount_debugfs
 		_info_nol "* PTI enabled and active: "
 		if [ "$opt_live" = 1 ]; then
+			dmesg_grep="Kernel/User page tables isolation: enabled"
+			dmesg_grep="$dmesg_grep|Kernel page table isolation enabled"
+			dmesg_grep="$dmesg_grep|x86/pti: Unmapping kernel while in userspace"
 			if grep ^flags /proc/cpuinfo | grep -qw pti; then
 				# vanilla PTI patch sets the 'pti' flag in cpuinfo
+				_debug "kpti_enabled: found 'pti' flag in /proc/cpuinfo"
 				kpti_enabled=1
 			elif grep ^flags /proc/cpuinfo | grep -qw kaiser; then
 				# kernel line 4.9 sets the 'kaiser' flag in cpuinfo
+				_debug "kpti_enabled: found 'kaiser' flag in /proc/cpuinfo"
 				kpti_enabled=1
 			elif [ -e /sys/kernel/debug/x86/pti_enabled ]; then
 				# RedHat Backport creates a dedicated file, see https://access.redhat.com/articles/3311301
 				kpti_enabled=$(cat /sys/kernel/debug/x86/pti_enabled 2>/dev/null)
-			elif dmesg | grep -Eq 'Kernel/User page tables isolation: enabled|Kernel page table isolation enabled'; then
+				_debug "kpti_enabled: file /sys/kernel/debug/x86/pti_enabled exists and says: $kpti_enabled"
+			elif dmesg | grep -Eq "$dmesg_grep"; then
 				# if we can't find the flag, grep dmesg output
+				_debug "kpti_enabled: found hint in dmesg: "$(dmesg | grep -E "$dmesg_grep")
 				kpti_enabled=1
-			elif [ -r /var/log/dmesg ] && grep -Eq 'Kernel/User page tables isolation: enabled|Kernel page table isolation enabled' /var/log/dmesg; then
+			elif [ -r /var/log/dmesg ] && grep -Eq "$dmesg_grep" /var/log/dmesg; then
 				# if we can't find the flag in dmesg output, grep in /var/log/dmesg when readable
+				_debug "kpti_enabled: found hint in /var/log/dmesg: "$(grep -E "$dmesg_grep" /var/log/dmesg)
 				kpti_enabled=1
 			else
+				_debug "kpti_enabled: couldn't find any hint that PTI is enabled"
 				kpti_enabled=0
 			fi
 			if [ "$kpti_enabled" = 1 ]; then
