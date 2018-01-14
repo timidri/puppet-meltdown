@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Puppet Task Name: 
+# kernel_update
 #
 # This is where you put the shell code for your task.
 #
@@ -27,18 +27,41 @@
 # Learn more at: https://puppet.com/docs/bolt/latest/task_metadata.html
 #
 
+update_redhat() {
+    yum_options='--assumeno'
+    if [ "$PT_force" == "true" ] ; then
+        yum_options='--assumeyes'
+    end
+    echo $yum_options
+    yum update kernel $yum_options
+}
+
+update_debian() {
+    apt_options='--assume-no'
+    if [ "$PT_force" == "true" ] ; then
+        apt_options='--assume-yes'
+    end
+    apt-get update
+    apt-get $apt_options install linux-image
+}
+
+
 reboot=""
 if [ "$PT_force" == "true" ] ; then
-  yum_options="--assumeyes"
   if [ "$PT_reboot" == "true" ] ; then
     reboot=true
   fi
-else
-  yum_options="--assumeno"
 fi
 
-echo $yum_options
-yum update kernel $yum_options
+# try to detect linux flavour without puppet
+if [ -f /etc/redhat-release ]; then
+    update_redhat
+elif [ -f /etc/lsb-release ]; then
+    update_debian
+else
+    echo "unsupported operating system"
+    exit 1
+fi
 
 if [ -n "$reboot" ]; then
     echo "Rebooting ..."
