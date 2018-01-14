@@ -28,6 +28,7 @@
 #
 
 update_redhat() {
+    echo "PT_force: $PT_force"
     yum_options='--assumeno'
     if [ "$PT_force" == "true" ] ; then
         yum_options='--assumeyes'
@@ -37,6 +38,7 @@ update_redhat() {
 }
 
 update_debian() {
+    echo "PT_force: $PT_force"
     apt_options='--assume-no'
     if [ "$PT_force" == "true" ] ; then
         apt_options='--assume-yes'
@@ -66,4 +68,5 @@ fi
 
 if [ -n "$reboot" ]; then
     echo "Rebooting ..."
+    shutdown -r now
 fi
