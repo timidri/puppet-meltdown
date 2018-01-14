@@ -1,5 +1,5 @@
 # meltdown::linux
-# our meltdown detection requires the package `binutils` to be installed 
+# Installs the pre-requisites for the meltdown detection script
 
 class meltdown::linux {
   package { 'binutils':

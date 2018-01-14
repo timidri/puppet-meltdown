@@ -1,0 +1,15 @@
+{
+  "puppet_task_version": 1,
+  "supports_noop": false,
+  "description": "A task for updating the kernel",
+  "parameters": {
+    "force": {
+      "description": "If true, the linux kernel update is performed, otherwise the output of what would be updated is printed",
+      "type": "Optional[Boolean]"
+     },
+     "reboot": {
+      "description": "If true, the system is rebooted after the update is performed, but only if force is also true",
+      "type": "Optional[Boolean]"
+     }
+  }
+}

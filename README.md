@@ -21,6 +21,16 @@ The only thing needed is to install the module on the puppetmaster (for instance
 
 ## Reference
 
+### Classes
+
+#### meltdown::linux
+
+Installs the pre-requisites for properly detecting Spectre & Meltdown
+
+#### meltdown::windows
+
+Ensures registry settings and OS patches are in place to mitigate against Spectre & Meltdown vulnerabilities
+
 ### Facts
 
 meltdown provides the following facts:
@@ -66,12 +76,16 @@ This facts contains the value `true` if the vulnerability is detected and `false
 
 Meltdown provides the following tasks:
 
-#### meltdown::kernel_upgrade
+#### meltdown::linux_upgrade
 
 This task offers 2 parameters:
 
 * **force**  : if true, the kernel upgrade is really performed, otherwise it only outputs what it would have done
 * **reboot** : if true, reboots the machine after update, but only if *force* is also true
+
+#### meltdown::windows_upgrade
+
+... doc forthcoming ...
 
 ## Limitations
 
@@ -79,6 +93,7 @@ meltdown is tested on the following platforms:
 
 * Linux
   * CentOS/Red Hat 7 (but should work on earlier versions)
+  * Ubuntu 14.04
 * Windows (versions?)
 
 Feel free to add support for other platforms.
