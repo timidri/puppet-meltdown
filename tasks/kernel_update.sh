@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # kernel_update
 #
@@ -47,7 +47,6 @@ update_debian() {
     apt-get update
     apt-get $apt_options install linux-image
 }
-
 
 reboot=""
 if [ "$PT_force" == "true" ] ; then
