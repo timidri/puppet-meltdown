@@ -3,7 +3,7 @@
 #
 class meltdown::windows {
   # resources
-  # These registry values are benign, won't cdo anything on systems that are not yet patched. So always install them.
+  # These registry values are benign, won't do anything on systems that are not yet patched. So always install them.
   registry_value { 'SpeculativeExecutionProtection_FeatureSettingsOverride':
     ensure => present,
     path   => 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\FeatureSettingsOverride',
