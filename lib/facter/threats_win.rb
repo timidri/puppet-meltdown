@@ -1,5 +1,5 @@
 Facter.add('meltdown') do
-  confine osfamily: 'windows'
+  confine kernel: 'windows'
   setcode do
     sysroot = ENV['SystemRoot']
     programdata = ENV['ProgramData']
