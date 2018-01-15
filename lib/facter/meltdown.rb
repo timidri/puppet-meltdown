@@ -65,12 +65,12 @@ end
 # generate CVE-specific facts
 meltdown_hash = JSON.parse(Facter.value('meltdown'))
 
-meltdown_hash.each do |item|
+meltdown_hash.keys.each do |item|
   # fact names need to be lowercase
-  Facter.add(item['CVE'].downcase) do
+  Facter.add(item.downcase) do
     confine kernel: 'linux'
     setcode do
-      item['VULNERABLE']
+      meltdown_hash[item]['vulnerable']
     end
   end
 end
