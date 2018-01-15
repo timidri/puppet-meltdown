@@ -16,7 +16,7 @@ class meltdown::windows {
     type   => dword,
     data   => 3,
   }
-  registry_value { 'SpeculativeExecutionProtection_HyperV_Parent':
+  registry_key { 'SpeculativeExecutionProtection_HyperV_Parent':
     ensure => present,
     path   => 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization',
   }
