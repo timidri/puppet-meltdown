@@ -1,5 +1,22 @@
 require 'json'
 
+def convert_structure (json_array)
+  output = {}
+  json_array.each do |item|
+    key = item['CVE']
+    value = {
+      CVE: key.gsub(/CVE-/, ""),
+      description: item['NAME'],
+      vulnerable:  item['VULNERABLE'],
+      info: {
+        hardware: item['INFOS']
+      }  
+    }
+    output[key] = value
+  end
+  output
+end
+
 def json_stub
   value = <<-EOT
   [
@@ -40,6 +57,7 @@ Facter.add('meltdown') do
                                  'meltdown', 'spectre-meltdown-checker.sh')
       value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
     end
+    value = convert_structure(value)
     JSON.pretty_generate(value)
   end
 end
