@@ -1,4 +1,4 @@
-Facter.add('threats') do
+Facter.add('meltdown') do
   confine osfamily: 'windows'
   setcode do
     sysroot = ENV['SystemRoot']
