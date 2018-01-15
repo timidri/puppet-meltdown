@@ -25,6 +25,6 @@ class meltdown::windows {
     path    => 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\MinVmVersionForCpuBasedMitigations',
     type    => string,
     data    => '1.0',
-    require => Registry_value['SpeculativeExecutionProtection_HyperV_Parent']
+    require => Registry_key['SpeculativeExecutionProtection_HyperV_Parent']
   }
 }
