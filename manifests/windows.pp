@@ -16,11 +16,15 @@ class meltdown::windows {
     type   => dword,
     data   => 3,
   }
-  registry_value { 'SpeculativeExecutionProtection_HyperV':
+  registry_value { 'SpeculativeExecutionProtection_HyperV_Parent':
     ensure => present,
-    path   => 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\MinVmVersionForCpuBasedMitigations',
-    type   => string,
-    data   => '1.0',
+    path   => 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization',
   }
-
+  registry_value { 'SpeculativeExecutionProtection_HyperV':
+    ensure  => present,
+    path    => 'HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Virtualization\MinVmVersionForCpuBasedMitigations',
+    type    => string,
+    data    => '1.0',
+    require => Registry_value['SpeculativeExecutionProtection_HyperV_Parent']
+  }
 }
