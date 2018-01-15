@@ -44,8 +44,6 @@ Function Add-SpectreVariants {
     }
 }
 
-Process {
-    $arrCVE = @{}
-    Add-SpectreVariants
-    $arrCVE | ConvertTo-Json
-}
+$arrCVE = @{}
+Add-SpectreVariants
+$arrCVE | ConvertTo-Json
