@@ -67,5 +67,5 @@ fi
 
 if [ -n "$reboot" ]; then
     echo "Rebooting ..."
-    shutdown -r now
+    shutdown -r
 fi
