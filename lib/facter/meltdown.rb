@@ -17,6 +17,7 @@ def convert_structure(json_array)
   output
 end
 
+# used for testing on a Mac
 def json_stub
   value = <<-EOT
   [
@@ -44,7 +45,9 @@ def json_stub
 end
 
 Facter.add('meltdown') do
-  confine kernel: 'linux'
+  if Facter.value(:osfamily) != 'Darwin'
+    confine kernel: 'linux'
+  end
   value = ''
   checker_script = ''
   setcode do
