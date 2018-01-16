@@ -51,17 +51,21 @@ Facter.add('meltdown') do
   value = ''
   checker_script = ''
   setcode do
-    if Facter.value(:osfamily) == 'Darwin'
-      # just generate some output for testing
-      value = JSON.parse(json_stub)
+    if Facter.value(:virtual) == 'docker'
+      value = 'This node is a container; skipping analysis'
     else
-      # get the script path relative to facter Ruby program
-      checker_script = File.join(File.expand_path(File.dirname(__FILE__)), '..',
-                                 'meltdown', 'spectre-meltdown-checker.sh')
-      value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
+      if Facter.value(:osfamily) == 'Darwin'
+        # just generate some output for testing
+        value = JSON.parse(json_stub)
+      else
+        # get the script path relative to facter Ruby program
+        checker_script = File.join(File.expand_path(File.dirname(__FILE__)), '..',
+                                  'meltdown', 'spectre-meltdown-checker.sh')
+        value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
+      end
+      value = JSON.pretty_generate(convert_structure(value))
     end
-    value = convert_structure(value)
-    JSON.pretty_generate(value)
+    value
   end
 end
 
