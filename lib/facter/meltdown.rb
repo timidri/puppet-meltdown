@@ -1,16 +1,16 @@
 require 'json'
 
-def convert_structure (json_array)
+def convert_structure(json_array)
   output = {}
   json_array.each do |item|
     key = item['CVE']
     value = {
-      CVE: key.gsub(/CVE-/, ""),
-      description: item['NAME'],
-      vulnerable:  item['VULNERABLE'],
+      CVE:          key.gsub(%r{CVE-}, ''),
+      description:  item['NAME'],
+      vulnerable:   item['VULNERABLE'],
       info: {
-        hardware: item['INFOS']
-      }  
+        hardware:   item['INFOS'],
+      },
     }
     output[key] = value
   end
@@ -44,7 +44,7 @@ def json_stub
 end
 
 Facter.add('meltdown') do
-  confine kernel: 'linux'
+  # confine kernel: 'linux'
   value = ''
   checker_script = ''
   setcode do
