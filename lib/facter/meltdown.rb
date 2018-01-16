@@ -63,7 +63,7 @@ Facter.add('meltdown') do
                                   'meltdown', 'spectre-meltdown-checker.sh')
         value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
       end
-      value = JSON.pretty_generate(convert_structure(value))
+      value = convert_structure(value)
     end
     value
   end
