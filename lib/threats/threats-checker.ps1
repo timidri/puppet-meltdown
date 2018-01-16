@@ -15,7 +15,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2017-5715', @{
             "CVE"              = "2017-5715"
             "description"      = "Spectre Variant 1"
-            "vulnerable"       = if ($SpeculationControl.BTIWindowsSupportEnabled -and $SpeculationControl.BTIHardwarePresent) {$True} else {$False}
+            "vulnerable"       = if ($SpeculationControl.BTIWindowsSupportEnabled -and $SpeculationControl.BTIHardwarePresent) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.BTIWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.BTIWindowsSupportEnabled
@@ -25,7 +25,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2017-5753', @{
             "CVE"              = "2017-5753"
             "description"      = "Spectre Variant 2"
-            "vulnerable"       = if ([bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)) {$True} else {$False}
+            "vulnerable"       = if ([bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = [bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)
             }
@@ -33,7 +33,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2017-5754', @{
             "CVE"              = "2017-5754"
             "description"      = "Spectre Variant 3 - also known as Meltdown"
-            "vulnerable"       = if (!$SpeculationControl.KVAShadowRequired -or ($SpeculationControl.KVAShadowRequired -and $SpeculationControl.KVAShadowWindowsSupportEnabled)) {$True} else {$False}
+            "vulnerable"       = if (!$SpeculationControl.KVAShadowRequired -or ($SpeculationControl.KVAShadowRequired -and $SpeculationControl.KVAShadowWindowsSupportEnabled)) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.KVAShadowWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.KVAShadowWindowsSupportEnabled
