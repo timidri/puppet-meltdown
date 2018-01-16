@@ -999,9 +999,10 @@ If ($hotfix -eq $null) {
 		if (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\QualityCompat' -Name 'cadca5fe-87d3-4b96-b7fb-a231484277cc' 2>$null) {
 			Write-Output 'Required registry setting for this hotfix is present, so hotfix must not be approved yet in your WSUS server!'
 		} else {
-			Write-Output 'Required registry setting for this hotfix is not present, preventing the hotfix to be offered.
-			Your Antivirus vendor should be setting this registry entry, if this is not happening, your AV may not yet be compatible. Contact your AV vendor.
-			If you are not running any Antivirus on this node, use the meltdown::force_offer_hotfix Task to set the registry entry.'
+			Write-Output 'Required registry setting for this hotfix is not present, preventing the hotfix to be offered.'
+			Write-Output 'Your Antivirus vendor should be setting this registry entry, if this is not happening, your AV may not yet be compatible. Contact your AV vendor.'
+			Write-Output ''
+			Write-Output 'If you are not running any Antivirus on this node, use the meltdown::force_offer_hotfix Task to set the registry entry.'
 		}
 		Exit 1
 		}
