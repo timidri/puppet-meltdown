@@ -13,7 +13,7 @@
 
 meltdown detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability.
 
-meltdown for Linux uses the script ``spectre-meltdown-checker.sh`` by Vivek Gite - see https://www.cyberciti.biz/faq/check-linux-server-for-spectre-meltdown-vulnerability/ - all credits to him for that awesome script.
+meltdown for Linux uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
 
 ## Setup
 
