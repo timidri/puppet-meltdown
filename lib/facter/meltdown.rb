@@ -44,7 +44,7 @@ def json_stub
 end
 
 Facter.add('meltdown') do
-  # confine kernel: 'linux'
+  confine kernel: 'linux'
   value = ''
   checker_script = ''
   setcode do
