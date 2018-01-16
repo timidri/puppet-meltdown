@@ -15,11 +15,13 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2017-5715', @{
             "CVE"              = "2017-5715"
             "description"      = "Spectre Variant 1"
-            "vulnerable"       = if ($SpeculationControl.BTIWindowsSupportEnabled -and $SpeculationControl.BTIHardwarePresent) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.BTIWindowsSupportEnabled) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.BTIWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.BTIWindowsSupportEnabled
-                "hardware_support" = $SpeculationControl.BTIHardwarePresent    
+                "hardware_support" = $SpeculationControl.BTIHardwarePresent
+                "hotfix_disable_due_to_lack_of_hardware_support" = $SpeculationControl.BTIDisabledByNoHardwareSupport
+                "hotfix_disable_via_system_policy" = $SpeculationControl.BTIDisabledBySystemPolicy
             }
         })
         $arrCVE.Add('CVE-2017-5753', @{
