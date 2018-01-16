@@ -59,8 +59,12 @@ Facter.add('meltdown') do
       value = JSON.parse(json_stub)
     else
       # get the script path relative to facter Ruby program
-      checker_script = File.join(File.expand_path(File.dirname(__FILE__)), '..',
-                                'meltdown', 'spectre-meltdown-checker.sh')
+      checker_script = File.join(
+        File.expand_path(File.dirname(__FILE__)),
+        '..',
+        'meltdown',
+        'spectre-meltdown-checker.sh',
+      )
       value = JSON.parse(Facter::Core::Execution.exec("/bin/sh #{checker_script} --batch json"))
     end
     convert_structure(value)
