@@ -1,0 +1,7 @@
+{
+  "puppet_task_version": 1,
+  "description": "A task for forcing the update service to offer the hotfix to this server",
+  "input_method": "powershell",
+  "parameters": {
+  }
+}
