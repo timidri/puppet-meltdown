@@ -1,8 +1,8 @@
 {
   "name": "puppet-meltdown",
-  "version": "0.1.0",
-  "author": "Dimitri Tischenko & Kevn Reeuwijk",
-  "summary": "Detect and remediate meltdown / spectre vulnerability",
+  "version": "0.8.0",
+  "author": "Dimitri Tischenko & Kevin Reeuwijk",
+  "summary": "Detect and remediate Meltdown / Spectre vulnerability",
   "license": "Apache-2.0",
   "source": "https://github.com/timidri/puppet-meltdown",
   "dependencies": [

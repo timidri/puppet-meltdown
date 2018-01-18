@@ -74,17 +74,6 @@ This is a json object of the following form:
   }
 ]
 ```
-#### cve-2017-5754
-
-This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
-
-#### cve-2017-5753
-
-This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
-
-#### cve-2017-5715
-
-This facts contains the value `true` if the vulnerability is detected and `false` otherwize.
 
 ### Tasks
 
