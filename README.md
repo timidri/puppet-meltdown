@@ -112,8 +112,6 @@ meltdown is tested on the following platforms:
   * Windows Server 2102 R2
   * Windows Server 2016
 
-Feel free to add support for other platforms.
-
 ## Development
 
 Contributions for adding other platforms are welcomed.
