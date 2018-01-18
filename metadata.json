@@ -1,5 +1,5 @@
 {
-  "name": "puppet-meltdown",
+  "name": "timidri-meltdown",
   "version": "0.8.0",
   "author": "Dimitri Tischenko & Kevin Reeuwijk",
   "summary": "Detect and remediate Meltdown / Spectre vulnerability",
