@@ -11,13 +11,19 @@
 
 ## Description
 
-meltdown detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability.
+This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability.
 
-meltdown for Linux uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
+The module uses some code created by others, which we'd like to recognize here:
+
+For Linux, the module uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
+
+For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.4 and the Get-WUInstall function from Alexander Tsirel - see https://github.com/noma4i/puppet-windows_updates. All credits to them for these awesome scripts.
 
 ## Setup
 
-The only thing needed is to install the module on the puppetmaster (for instance, by adding it to Puppetfile). During the next puppet run, all connected agents will receive meltdown's facts definitions and will send meltdown's facts back to the puppetmaster.
+To get information (facts) only, just install the module on the puppetmaster (either manually or by adding it to Puppetfile). During the next puppet run, all connected agents will receive meltdown's facts definitions and will send meltdown's facts back to the puppetmaster.
+
+This module includes two manifests to aid in some prerequirements that you can manage with Puppet.
 
 ## Reference
 
@@ -25,11 +31,11 @@ The only thing needed is to install the module on the puppetmaster (for instance
 
 #### meltdown::linux
 
-Installs the pre-requisites for properly detecting Spectre & Meltdown
+Ensures the pre-requisite ``binutils`` package is present for properly detecting Spectre & Meltdown.
 
 #### meltdown::windows
 
-Ensures registry settings and OS patches are in place to mitigate against Spectre & Meltdown vulnerabilities
+Ensures the registry entries are present that are needed to enable the Spectre & Meltdown hotfix after it is installed. These entries don't do anything on systems where the hotfix is not yet installed, so they can be applied to all Windows systems without negative consequences.
 
 ### Facts
 
