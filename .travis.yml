@@ -35,9 +35,9 @@ notifications:
   email: false
 deploy:
   provider: puppetforge
-  user: puppet
+  user: timidri@gmail.com
   password:
-    secure: ""
+    secure: "gB0aHGotJJAjkQR6r2olQmd22GDNq/HG3Y5+PRgphT9nuOGNUVpz7zM/CUS7TKR/RZUbJ3xixNTxqAAVeY0O0SCo5sEQS4+2I3FZv33prIKFkgw3B5Rw72Km8I5VozZROYenn5uCYurUQ4y5YJXAig1Da5wYOaz1aGaxCX1UzZNoozqMSg7h0IVXiDTRHpnA2HIyP+kV//7ILgTiG7ATI7GRpSKDMLFvAOs2N0HIWkttuUmhCTGfIE4/okkWWi7lzwAUdtA85exacJPsz5xe4mcCKZyG3n+xHQ5p+b8QtmOSUeYJJo3ehYT7sK11Nt9LcxUvJ7Zk2ypup4DdN5deW3VRa/ExxSAarZ5bONgRcu9lmq0mP5VgjXq4QV53jyIsqcnjXefkAN4Jp181e0OPINBEb2XtI6sWazFVkXk7HqsNLGq1+GKXmx3arUVDwfbUyMyCYvOBWQoDa9REZ4jfkJOHyqwIg8Ns4QDFyvOtBqKjD0wCFo1ePShjLmwx3E+7edPn4kgZiH1hEx7EnyYM33zIrXzRy0JPm8us1kIA1AapYMCt1MrtkT5iJdOp3SayLKStx/w3cdQlHLsR/Bt5Kcb2ZbDuahcOBe9WsoNHS+vcDuBqBZK4MFerf2ouZriDfYM6IM1H7CziPDluX0VBgh3juAuCBxqoJFCHXsFzsvI="
   on:
     tags: true
     all_branches: true
