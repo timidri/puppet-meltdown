@@ -114,6 +114,8 @@ meltdown is tested on the following platforms:
   * Windows Server 2102 R2
   * Windows Server 2016
 
+meltdown works on all Puppet Enterprise versions specified in the compatibility information, but tasks only work starting with 2017.3.
+
 ## Development
 
 Contributions for adding other platforms are welcomed.
