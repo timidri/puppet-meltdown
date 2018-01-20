@@ -10,7 +10,7 @@ update_redhat() {
     yum update kernel $yum_options
 }
 
-update_debian() {
+update_ubuntu() {
     # echo "PT_force: ${PT_force}"
     apt_options='--assume-no'
     if [ "${PT_force}" == "true" ] ; then
@@ -19,6 +19,17 @@ update_debian() {
     echo $apt_options
     apt-get update
     apt-get $apt_options install linux-generic
+}
+
+update_debian() {
+    # echo "PT_force: ${PT_force}"
+    apt_options='--assume-no'
+    if [ "${PT_force}" == "true" ] ; then
+        apt_options='--assume-yes'
+    fi
+    echo $apt_options
+    apt-get update
+    apt-get $apt_options install linux-image
 }
 
 reboot=""
@@ -32,6 +43,8 @@ fi
 if [ -f /etc/redhat-release ]; then
     update_redhat
 elif [ -f /etc/lsb-release ]; then
+    update_ubuntu
+elif [ -f /etc/os-release ]; then
     update_debian
 else
     echo "unsupported operating system"
