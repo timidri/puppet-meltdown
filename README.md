@@ -11,7 +11,7 @@
 
 ## Description
 
-This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability.
+This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability. *NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
 
 The module uses some code created by others, which we'd like to recognize here:
 
@@ -23,7 +23,7 @@ For Windows, the module uses the SpeculationControl module for Powershell - see 
 
 To get information (facts) only, just install the module on the puppetmaster (either manually or by adding it to Puppetfile). During the next puppet run, all connected agents will receive meltdown's facts definitions and will send meltdown's facts back to the puppetmaster.
 
-This module includes two manifests to aid in some prerequirements that you can manage with Puppet.
+This module includes two manifests to aid in some prerequisites that you can manage with Puppet.
 
 ## Reference
 
@@ -31,7 +31,7 @@ This module includes two manifests to aid in some prerequirements that you can m
 
 #### meltdown::linux
 
-Ensures the pre-requisite ``binutils`` package is present for properly detecting Spectre & Meltdown.
+Ensures the prerequisite ``binutils`` package is present for properly detecting Spectre & Meltdown.
 
 #### meltdown::windows
 
@@ -45,7 +45,6 @@ meltdown provides the following facts:
 
 This is a json object of the following form:
 ```
-[
   {
     "CVE-2017-5753" : {
       "CVE" : "2017-5753",
@@ -72,7 +71,6 @@ This is a json object of the following form:
       "vulnerable" : false
     }
   }
-]
 ```
 
 ### Tasks
@@ -93,7 +91,7 @@ This task installs the correct Windows patch for Spectre & Meltdown for Windows 
 * **force**  : if true, the patch installation is actually performed, otherwise it only outputs if the patch is being offered to this system from the update server
 * **reboot** : if true, reboots the machine after update, but only if *force* is also true
 
-If the patch is not being offered to the system from the update server, the task will notify you of this. If the reason for this is that a prerequired registry entry is not present (which should already be set by your antivirus product), the task will notify you of this. You have the option of using the meltdown::force_offer_hotfix task to get this registry entry in place if needed.
+If the patch is not being offered to the system from the update server, the task will notify you of this. If the reason for this is that a required registry entry is not present (which should already be set by your antivirus product), the task will notify you of this. You have the option of using the meltdown::force_offer_hotfix task to get this registry entry in place if needed.
 
 #### meltdown::force_offer_update
 
