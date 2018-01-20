@@ -2,7 +2,8 @@
 
 update_redhat() {
     # echo "PT_force: ${PT_force}"
-    yum_options='--assumeno'
+    # yum_options='--assumeno'
+    yum_options=''
     if [ "${PT_force}" == "true" ] ; then
         yum_options='--assumeyes'
     fi
