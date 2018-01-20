@@ -11,7 +11,11 @@
 
 ## Description
 
-This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability. *NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
+This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability. 
+
+*NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
+
+*NOTE*: this module is provided in the hope it will be useful, but does not guarantee correct or complete detection or remediation of Meltdown / Spectre. Use it at your own discretion.
 
 The module uses some code created by others, which we'd like to recognize here:
 
