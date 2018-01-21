@@ -107,7 +107,10 @@ This task has no parameters.
 meltdown is tested on the following platforms:
 
 * Linux
-  * CentOS/Red Hat 7 (but should work on earlier versions)
+  * CentOS 7
+  * CentOS 6
+  * Debian 8 64 bits
+  * Debian 8 32 bits
   * Ubuntu 14.04
 * Windows Server
   * Windows Server 2008 R2
