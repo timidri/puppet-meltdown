@@ -8,7 +8,7 @@
 #
 # Stephane Lesimple
 #
-VERSION=0.31
+VERSION=0.32
 
 show_usage()
 {
@@ -97,17 +97,31 @@ global_critical=0
 global_unknown=0
 nrpe_vuln=""
 
+echo_cmd=''
 __echo()
 {
 	opt="$1"
 	shift
 	_msg="$@"
+
+	if [ -z "$echo_cmd" ]; then
+		# find a sane `echo` command
+		# we'll try to avoid using shell builtins that might not take options
+		if which echo >/dev/null 2>&1; then
+			echo_cmd=`which echo`
+		else
+			[ -x /bin/echo        ] && echo_cmd=/bin/echo
+			[ -x /system/bin/echo ] && echo_cmd=/system/bin/echo
+		fi
+		# still empty ? fallback to builtin
+		[ -z "$echo_cmd" ] && echo_cmd=echo
+	fi
+
 	if [ "$opt_no_color" = 1 ] ; then
 		# strip ANSI color codes
-		_msg=$(/bin/echo -e  "$_msg" | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
+		_msg=$($echo_cmd -e  "$_msg" | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
 	fi
-	# explicitly call /bin/echo to avoid shell builtins that might not take options
-	/bin/echo $opt -e "$_msg"
+	$echo_cmd $opt -e "$_msg"
 }
 
 _echo()
@@ -156,6 +170,16 @@ _debug()
 	_echo 3 "\033[34m(debug) $@\033[0m"
 }
 
+is_cpu_vulnerable_cached=0
+_is_cpu_vulnerable_cached()
+{
+	[ "$1" = 1 ] && return $variant1
+	[ "$1" = 2 ] && return $variant2
+	[ "$1" = 3 ] && return $variant3
+	echo "$0: error: invalid variant '$1' passed to is_cpu_vulnerable()" >&2
+	exit 255
+}
+
 is_cpu_vulnerable()
 {
 	# param: 1, 2 or 3 (variant)
@@ -163,56 +187,102 @@ is_cpu_vulnerable()
 	# (note that in shell, a return of 0 is success)
 	# by default, everything is vulnerable, we work in a "whitelist" logic here.
 	# usage: is_cpu_vulnerable 2 && do something if vulnerable
-	variant1=0
-	variant2=0
-	variant3=0
+	if [ "$is_cpu_vulnerable_cached" = 1 ]; then
+		_is_cpu_vulnerable_cached "$1"
+		return $?
+	fi
+
+	variant1=''
+	variant2=''
+	variant3=''
+	# we also set a friendly name for the CPU to be used in the script if needed
+	cpu_friendly_name=$(grep '^model name' /proc/cpuinfo | cut -d: -f2- | head -1)
 
 	if grep -q GenuineIntel /proc/cpuinfo; then
 		# Intel
 		# Old Atoms are not vulnerable to spectre 2 nor meltdown
 		# https://security-center.intel.com/advisory.aspx?intelid=INTEL-SA-00088&languageid=en-fr
-		if grep -qE '^model name.+ Atom\(TM\) CPU +(S|D|N|230|330)' /proc/cpuinfo; then
-			variant2=1
-			variant3=1
+		# model name : Genuine Intel(R) CPU N270 @ 1.60GHz
+		# model name : Intel(R) Atom(TM) CPU N270 @ 1.60GHz
+		# model name : Intel(R) Atom(TM) CPU 330 @ 1.60GHz
+		#
+		# https://github.com/crozone/SpectrePoC/issues/1 ^F E5200:
+		# model name : Pentium(R) Dual-Core  CPU      E5200  @ 2.50GHz
+		if grep -qE -e '^model name.+ Intel\(R\) (Atom\(TM\) CPU +(S|D|N|230|330)|CPU N[0-9]{3} )'   \
+			    -e '^model name.+ Pentium\(R\) Dual-Core[[:space:]]+CPU[[:space:]]+E[0-9]{4}K? ' \
+				/proc/cpuinfo; then
+			variant1=vuln
+			[ -z "$variant2" ] && variant2=immune
+			[ -z "$variant3" ] && variant3=immune
 		fi
 	elif grep -q AuthenticAMD /proc/cpuinfo; then
 		# AMD revised their statement about variant2 => vulnerable
 		# https://www.amd.com/en/corporate/speculative-execution
-		variant3=1
-	elif grep -qi 'CPU implementer\s*:\s*0x41' /proc/cpuinfo; then
+		variant1=vuln
+		variant2=vuln
+		[ -z "$variant3" ] && variant3=immune
+	elif grep -qi 'CPU implementer[[:space:]]*:[[:space:]]*0x41' /proc/cpuinfo; then
 		# ARM
 		# reference: https://developer.arm.com/support/security-update
-		cpupart=$(awk '/CPU part/         {print $4;exit}' /proc/cpuinfo)
-		cpuarch=$(awk '/CPU architecture/ {print $3;exit}' /proc/cpuinfo)
-		if [ -n "$cpupart" -a -n "$cpuarch" ]; then
-			# Cortex-R7 and Cortex-R8 are real-time and only used in medical devices or such
-			# I can't find their CPU part number, but it's probably not that useful anyway
-			# model R7 R8 A9    A15   A17   A57   A72    A73    A75
-			# part   ?  ? 0xc09 0xc0f 0xc0e 0xd07 0xd08  0xd09  0xd0a
-			# arch  7? 7? 7     7     7     8     8      8      8
-			if [ "$cpuarch" = 7 ] && echo "$cpupart" | grep -Eq '^0x(c09|c0f|c0e)$'; then
-				# armv7 vulnerable chips
-				:
-			elif [ "$cpuarch" = 8 ] && echo "$cpupart" | grep -Eq '^0x(d07|d08|d09|d0a)$'; then
-				# armv8 vulnerable chips
-				:
-			else
-				# others are not vulnerable
-				variant1=1
-				variant2=1
-			fi
-			# for variant3, only A75 is vulnerable
-			if ! [ "$cpuarch" = 8 -a "$cpupart" = 0xd0a ]; then
-				variant3=1
-			fi
-		fi
-	fi
+		# some devices (phones or other) have several ARMs and as such different part numbers,
+		# an example is "bigLITTLE". we shouldn't rely on the first CPU only, so we check the whole list
+		cpupart_list=$(awk '/CPU part/         {print $4}' /proc/cpuinfo)
+		cpuarch_list=$(awk '/CPU architecture/ {print $3}' /proc/cpuinfo)
+		i=0
+		for cpupart in $cpupart_list
+		do
+			i=$(( i + 1 ))
+			cpuarch=$(echo $cpuarch_list | awk '{ print $'$i' }')
+			_debug "checking cpu$i: <$cpupart> <$cpuarch>"
+			# some kernels report AArch64 instead of 8
+			[ "$cpuarch" = "AArch64" ] && cpuarch=8
+			if [ -n "$cpupart" -a -n "$cpuarch" ]; then
+				cpu_friendly_name="ARM v$cpuarch model $cpupart"
+				# Cortex-R7 and Cortex-R8 are real-time and only used in medical devices or such
+				# I can't find their CPU part number, but it's probably not that useful anyway
+				# model R7 R8 A9    A15   A17   A57   A72    A73    A75
+				# part   ?  ? 0xc09 0xc0f 0xc0e 0xd07 0xd08  0xd09  0xd0a
+				# arch  7? 7? 7     7     7     8     8      8      8
+				#
+				# variant 1 & variant 2
+				if [ "$cpuarch" = 7 ] && echo "$cpupart" | grep -Eq '^0x(c09|c0f|c0e)$'; then
+					# armv7 vulnerable chips
+					_debug "checking cpu$i: this armv7 vulnerable to spectre 1 & 2"
+					variant1=vuln
+					variant2=vuln
+				elif [ "$cpuarch" = 8 ] && echo "$cpupart" | grep -Eq '^0x(d07|d08|d09|d0a)$'; then
+					# armv8 vulnerable chips
+					_debug "checking cpu$i: this armv8 vulnerable to spectre 1 & 2"
+					variant1=vuln
+					variant2=vuln
+				else
+					_debug "checking cpu$i: this arm non vulnerable to 1 & 2"
+					# others are not vulnerable
+					[ -z "$variant1" ] && variant1=immune
+					[ -z "$variant2" ] && variant2=immune
+				fi
 
-	[ "$1" = 1 ] && return $variant1
-	[ "$1" = 2 ] && return $variant2
-	[ "$1" = 3 ] && return $variant3
-	echo "$0: error: invalid variant '$1' passed to is_cpu_vulnerable()" >&2
-	exit 255
+				# for variant3, only A75 is vulnerable
+				if [ "$cpuarch" = 8 -a "$cpupart" = 0xd0a ]; then
+					_debug "checking cpu$i: arm A75 vulnerable to meltdown"
+					variant3=vuln
+				else
+					_debug "checking cpu$i: this arm non vulnerable to meltdown"
+					[ -z "$variant3" ] && variant3=immune
+				fi
+			fi
+			_debug "is_cpu_vulnerable: for cpu$i and so far, we have <$variant1> <$variant2> <$variant3>"
+		done
+	fi
+	_debug "is_cpu_vulnerable: temp results are <$variant1> <$variant2> <$variant3>"
+	# if at least one of the cpu is vulnerable, then the system is vulnerable
+	[ "$variant1" = "immune" ] && variant1=1 || variant1=0
+	[ "$variant2" = "immune" ] && variant2=1 || variant2=0
+	[ "$variant3" = "immune" ] && variant3=1 || variant3=0
+	_debug "is_cpu_vulnerable: final results are <$variant1> <$variant2> <$variant3>"
+	is_cpu_vulnerable_cached=1
+	_is_cpu_vulnerable_cached "$1"
+	return $?
 }
 
 show_header()
@@ -341,10 +411,10 @@ pstatus()
 		_info_nol "$2"
 	else
 		case "$1" in
-			red)    col="\033[101m\033[30m";;
-			green)  col="\033[102m\033[30m";;
-			yellow) col="\033[103m\033[30m";;
-			blue)   col="\033[104m\033[30m";;
+			red)    col="\033[41m\033[30m";;
+			green)  col="\033[42m\033[30m";;
+			yellow) col="\033[43m\033[30m";;
+			blue)   col="\033[44m\033[30m";;
 			*)      col="";;
 		esac
 		_info_nol "$col $2 \033[0m"
@@ -416,8 +486,8 @@ vmlinux=''
 vmlinux_err=''
 check_vmlinux()
 {
-	readelf -h "$1" > /dev/null 2>&1 || return 1
-	return 0
+	readelf -h "$1" >/dev/null 2>&1 && return 0
+	return 1
 }
 
 try_decompress()
@@ -518,6 +588,22 @@ unload_cpuid()
 	fi
 }
 
+dmesg_grep()
+{
+	# grep for something in dmesg, ensuring that the dmesg buffer
+	# has not been truncated
+	dmesg_grepped=''
+	if ! dmesg | grep -qE '(^|\] )Linux version [0-9]'; then
+		# dmesg truncated
+		return 2
+	fi
+	dmesg_grepped=$(dmesg | grep -E "$1" | head -1)
+	# not found:
+	[ -z "$dmesg_grepped" ] && return 1
+	# found, output is in $dmesg_grepped
+	return 0
+}
+
 is_coreos()
 {
 	which coreos-install >/dev/null 2>&1 && which toolbox >/dev/null 2>&1 && return 0
@@ -543,7 +629,7 @@ if [ "$opt_coreos" = 1 ]; then
 	load_msr
 	load_cpuid
 	mount_debugfs
-	toolbox --ephemeral --bind-ro /dev/cpu:/dev/cpu -- sh -c "dnf install -y binutils curl which && /media/root$PWD/$0 $@ --coreos-within-toolbox"
+	toolbox --ephemeral --bind-ro /dev/cpu:/dev/cpu -- sh -c "dnf install -y binutils which && /media/root$PWD/$0 $@ --coreos-within-toolbox"
 	exitcode=$?
 	mount_debugfs
 	unload_cpuid
@@ -566,7 +652,9 @@ if [ "$opt_live" = 1 ]; then
 		_warn
 	fi
 	_info "Checking for vulnerabilities against running kernel \033[35m"$(uname -s) $(uname -r) $(uname -v) $(uname -m)"\033[0m"
-	_info "CPU is\033[35m"$(grep '^model name' /proc/cpuinfo | cut -d: -f2 | head -1)"\033[0m"
+	# call is_cpu_vulnerable to fill the cpu_friendly_name var
+	is_cpu_vulnerable 1
+	_info "CPU is \033[35m$cpu_friendly_name\033[0m"
 
 	# try to find the image of the current running kernel
 	# first, look for the BOOT_IMAGE hint in the kernel cmdline
@@ -583,19 +671,29 @@ if [ "$opt_live" = 1 ]; then
 	fi
 	# if we didn't find a kernel, default to guessing
 	if [ ! -e "$opt_kernel" ]; then
+		# Fedora:
+		[ -e /lib/modules/$(uname -r)/vmlinuz ] && opt_kernel=/lib/modules/$(uname -r)/vmlinuz
+		# Slackare:
 		[ -e /boot/vmlinuz             ] && opt_kernel=/boot/vmlinuz
+		# Arch:
 		[ -e /boot/vmlinuz-linux       ] && opt_kernel=/boot/vmlinuz-linux
+		# Linux-Libre:
 		[ -e /boot/vmlinuz-linux-libre ] && opt_kernel=/boot/vmlinuz-linux-libre
+		# generic:
 		[ -e /boot/vmlinuz-$(uname -r) ] && opt_kernel=/boot/vmlinuz-$(uname -r)
 		[ -e /boot/kernel-$( uname -r) ] && opt_kernel=/boot/kernel-$( uname -r)
 		[ -e /boot/bzImage-$(uname -r) ] && opt_kernel=/boot/bzImage-$(uname -r)
+		# Gentoo:
 		[ -e /boot/kernel-genkernel-$(uname -m)-$(uname -r) ] && opt_kernel=/boot/kernel-genkernel-$(uname -m)-$(uname -r)
+		# NixOS:
 		[ -e /run/booted-system/kernel ] && opt_kernel=/run/booted-system/kernel
 	fi
 
 	# system.map
 	if [ -e /proc/kallsyms ] ; then
 		opt_map="/proc/kallsyms"
+	elif [ -e /lib/modules/$(uname -r)/System.map ] ; then
+		opt_map=/lib/modules/$(uname -r)/System.map
 	elif [ -e /boot/System.map-$(uname -r) ] ; then
 		opt_map=/boot/System.map-$(uname -r)
 	fi
@@ -606,6 +704,8 @@ if [ "$opt_live" = 1 ]; then
 		gunzip -c /proc/config.gz > $dumped_config
 		# dumped_config will be deleted at the end of the script
 		opt_config=$dumped_config
+	elif [ -e /lib/modules/$(uname -r)/config ]; then
+		opt_config=/lib/modules/$(uname -r)/config
 	elif [ -e /boot/config-$(uname -r) ]; then
 		opt_config=/boot/config-$(uname -r)
 	fi
@@ -1041,20 +1141,25 @@ check_variant3()
 				# RedHat Backport creates a dedicated file, see https://access.redhat.com/articles/3311301
 				kpti_enabled=$(cat /sys/kernel/debug/x86/pti_enabled 2>/dev/null)
 				_debug "kpti_enabled: file /sys/kernel/debug/x86/pti_enabled exists and says: $kpti_enabled"
-			elif dmesg | grep -Eq "$dmesg_grep"; then
-				# if we can't find the flag, grep dmesg output
-				_debug "kpti_enabled: found hint in dmesg: "$(dmesg | grep -E "$dmesg_grep")
-				kpti_enabled=1
-			elif [ -r /var/log/dmesg ] && grep -Eq "$dmesg_grep" /var/log/dmesg; then
-				# if we can't find the flag in dmesg output, grep in /var/log/dmesg when readable
-				_debug "kpti_enabled: found hint in /var/log/dmesg: "$(grep -E "$dmesg_grep" /var/log/dmesg)
-				kpti_enabled=1
-			else
+			fi
+			if [ -z "$kpti_enabled" ]; then
+				dmesg_grep "$dmesg_grep"; ret=$?
+				if [ $ret -eq 0 ]; then
+					_debug "kpti_enabled: found hint in dmesg: $dmesg_grepped"
+					kpti_enabled=1
+				elif [ $ret -eq 2 ]; then
+					_debug "kpti_enabled: dmesg truncated"
+					kpti_enabled=-1
+				fi
+			fi
+			if [ -z "$kpti_enabled" ]; then
 				_debug "kpti_enabled: couldn't find any hint that PTI is enabled"
 				kpti_enabled=0
 			fi
 			if [ "$kpti_enabled" = 1 ]; then
 				pstatus green YES
+			elif [ "$kpti_enabled" = -1 ]; then
+				pstatus yellow UNKNOWN "dmesg truncated, please reboot and relaunch this script"
 			else
 				pstatus red NO
 			fi
@@ -1089,12 +1194,12 @@ check_variant3()
 			_info_nol "* Checking if we're running under Xen PV (64 bits): "
 			if [ "$(uname -m)" = "x86_64" ]; then
 				# XXX do we have a better way that relying on dmesg?
-				if dmesg | grep -q 'Booting paravirtualized kernel on Xen$' ; then
+				dmesg_grep 'Booting paravirtualized kernel on Xen$'; ret=$?
+				if [ $ret -eq 0 ]; then
 					pstatus green YES 'Xen PV is not vulnerable'
 					xen_pv=1
-				elif [ -r /var/log/dmesg ] && grep -q 'Booting paravirtualized kernel on Xen$' /var/log/dmesg; then
-					pstatus green YES 'Xen PV is not vulnerable'
-					xen_pv=1
+				elif [ $ret -eq 2 ]; then
+					pstatus yellow UNKNOWN "dmesg truncated, please reboot and relaunch this script"
 				else
 					pstatus blue NO
 				fi
