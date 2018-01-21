@@ -25,16 +25,13 @@ update_ubuntu() {
 update_debian() {
     # echo "PT_force: ${PT_force}"
     apt_options='--assume-no'
-    arch=''
-    if [ "$(arch)" == "x86_64" ] ; then
-        arch='-amd64'
-    fi
     if [ "${PT_force}" == "true" ] ; then
         apt_options='--assume-yes'
     fi
     echo $apt_options
     apt-get update
-    apt-get $apt_options install linux-image${arch}
+    kernel=$(dpkg -l|grep linux-image|grep meta-package|awk '{print $2}')
+    apt-get $apt_options install $kernel
 }
 
 reboot=""
