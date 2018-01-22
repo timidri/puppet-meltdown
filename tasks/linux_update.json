@@ -5,11 +5,11 @@
   "parameters": {
     "force": {
       "description": "If true, the linux kernel update is performed, otherwise the output of what would be updated is printed",
-      "type": "Enum[true, false]"
+      "type": "Enum['true', 'false']"
      },
      "reboot": {
       "description": "If true, the system is rebooted after the update is performed, but only if force is also true",
-      "type": "Enum[true, false]"
+      "type": "Enum['true', 'false']"
      }
   }
 }
