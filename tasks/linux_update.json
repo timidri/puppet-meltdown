@@ -1,7 +1,7 @@
 {
   "puppet_task_version": 1,
   "supports_noop": false,
-  "description": "A task for updating the kernel",
+  "description": "A task for updating the Linux kernel to remediate Meltdown/Spectre",
   "parameters": {
     "force": {
       "description": "If true, the linux kernel update is performed, otherwise the output of what would be updated is printed",
