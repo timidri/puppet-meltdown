@@ -14,7 +14,6 @@ Updated CHANGELOG
 
 * Changed task parameters from Boolean to Enum['true', 'false'], so tasks are easier to use from the command line
 * Updated spectre-meltdown-checker.sh to v0.32
-* Support for EL6 (tested on Centos6).
 
 **Bugfixes**
 
