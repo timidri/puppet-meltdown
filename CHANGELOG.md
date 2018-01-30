@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.8.4
+
+**Features**
+
+* Updated `spectre-meltdown-checker.sh` to v0.33+
+
+**Bugfixes**
+
+Documented class `meltdown`
+
 ## Release 0.8.3
 
 **Bugfixes**
@@ -12,13 +22,13 @@ Updated CHANGELOG
 
 **Features**
 
-* Changed task parameters from Boolean to Enum['true', 'false'], so tasks are easier to use from the command line
-* Updated spectre-meltdown-checker.sh to v0.32
+* Changed task parameters from `Boolean` to `Enum['true', 'false']`, so tasks are easier to use from the command line
+* Updated `spectre-meltdown-checker.sh` to v0.32
 
 **Bugfixes**
 
-* Corrected version numbers in metadata.json
-* Added proper task description to linux_update.json
+* Corrected version numbers in `metadata.json`
+* Added proper task description to `linux_update.json`
 
 ## Release 0.8.1
 

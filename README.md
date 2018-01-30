@@ -33,6 +33,10 @@ This module includes two manifests to aid in some prerequisites that you can man
 
 ### Classes
 
+#### meltdown
+
+Includes `meltdown::linux` or `meltdown::windows`, depending on the kernel.
+
 #### meltdown::linux
 
 Ensures the prerequisite ``binutils`` package is present for properly detecting Spectre & Meltdown.
