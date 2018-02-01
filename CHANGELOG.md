@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.8.5
+
+**Bugfixes**
+
+* Fixed parameter type (was Boolean, is String now) in `windows_update.ps1`
+* Now correctly crediting Michal Gajda for `Get-WUInstall` to 
+
 ## Release 0.8.4
 
 **Features**
