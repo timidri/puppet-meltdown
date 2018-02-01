@@ -1006,8 +1006,8 @@ If ($hotfix -eq $null) {
 		}
 		Exit 1
 		}
-	If ($force) {
-        If ($reboot) {
+	If ($force -eq 'true') {
+        If ($reboot -eq 'true') {
             Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
         }
         Else {
