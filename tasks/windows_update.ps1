@@ -1,7 +1,7 @@
 [CmdletBinding()]
 Param(
-  [Parameter(Mandatory = $False)] [Bool] $force,
-  [Parameter(Mandatory = $False)] [Bool] $reboot
+  [Parameter(Mandatory = $False)] [String] $force,
+  [Parameter(Mandatory = $False)] [String] $reboot
 )
 
 Function Get-WUInstall
