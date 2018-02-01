@@ -21,7 +21,7 @@ The module uses some code created by others, which we'd like to recognize here:
 
 For Linux, the module uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
 
-For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.4 and the Get-WUInstall function from Alexander Tsirel - see https://github.com/noma4i/puppet-windows_updates. All credits to them for these awesome scripts.
+For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.4 and the Get-WUInstall function from Michal Gajda - see https://github.com/noma4i/puppet-windows_updates. All credits to them for these awesome functions.
 
 ## Setup
 
