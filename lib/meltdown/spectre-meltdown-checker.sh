@@ -4,11 +4,24 @@
 # Check for the latest version at:
 # https://github.com/speed47/spectre-meltdown-checker
 # git clone https://github.com/speed47/spectre-meltdown-checker.git
-# or wget https://raw.githubusercontent.com/speed47/spectre-meltdown-checker/master/spectre-meltdown-checker.sh
+# or wget meltdown.ovh -O spectre-meltdown-checker.sh
+# or curl -L meltdown.ovh -o spectre-meltdown-checker.sh
 #
 # Stephane Lesimple
 #
-VERSION='0.33+'
+VERSION='0.35'
+
+trap 'exit_cleanup' EXIT
+trap '_warn "interrupted, cleaning up..."; exit_cleanup; exit 1' INT
+exit_cleanup()
+{
+	# cleanup the temp decompressed config & kernel image
+	[ -n "$dumped_config" ] && [ -f "$dumped_config" ] && rm -f "$dumped_config"
+	[ -n "$vmlinuxtmp"    ] && [ -f "$vmlinuxtmp"    ] && rm -f "$vmlinuxtmp"
+	[ "$mounted_debugfs" = 1 ] && umount /sys/kernel/debug 2>/dev/null
+	[ "$insmod_cpuid"    = 1 ] && rmmod cpuid 2>/dev/null
+	[ "$insmod_msr"      = 1 ] && rmmod msr 2>/dev/null
+}
 
 show_usage()
 {
@@ -40,6 +53,7 @@ show_usage()
 		--batch text			Produce machine readable output, this is the default if --batch is specified alone
 		--batch json			Produce JSON output formatted for Puppet, Ansible, Chef...
 		--batch nrpe			Produce machine readable output formatted for NRPE
+		--batch prometheus              Produce output for consumption by prometheus-node-exporter
 		--variant [1,2,3]		Specify which variant you'd like to check, by default all variants are checked
 						Can be specified multiple times (e.g. --variant 2 --variant 3)
 
@@ -123,7 +137,10 @@ __echo()
 
 	if [ "$opt_no_color" = 1 ] ; then
 		# strip ANSI color codes
-		_msg=$($echo_cmd -e "$_msg" | sed -r "s/\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]//g")
+		# some sed versions (i.e. toybox) can't seem to handle
+		# \033 aka \x1B correctly, so do it for them.
+		_ctrlchar=$($echo_cmd -e "\033")
+		_msg=$($echo_cmd -e "$_msg" | sed -r "s/$_ctrlchar\[([0-9][0-9]?(;[0-9][0-9]?)?)?m//g")
 	fi
 	# shellcheck disable=SC2086
 	$echo_cmd $opt -e "$_msg"
@@ -203,26 +220,17 @@ is_cpu_vulnerable()
 	variant1=''
 	variant2=''
 	variant3=''
-	# we also set a friendly name for the CPU to be used in the script if needed
-	cpu_friendly_name=$(grep '^model name' /proc/cpuinfo | cut -d: -f2- | head -1 | sed -e 's/^ *//')
-	# variant 0 is just for us to fill the cpu_friendly_name var
-	[ "$1" = 0 ] && return 0
 
-	if grep -q GenuineIntel /proc/cpuinfo; then
+	if is_cpu_specex_free; then
+		variant1=immune
+		variant2=immune
+		variant3=immune
+	elif [ "$cpu_vendor" = GenuineIntel ]; then
 		# Intel
-		# Old Atoms are not vulnerable to spectre 2 nor meltdown
-		# https://security-center.intel.com/advisory.aspx?intelid=INTEL-SA-00088&languageid=en-fr
-		# model name : Genuine Intel(R) CPU N270 @ 1.60GHz
-		# model name : Intel(R) Atom(TM) CPU N270 @ 1.60GHz
-		# model name : Intel(R) Atom(TM) CPU 330 @ 1.60GHz
-		if grep -qE '^model name.+ Intel\(R\) (Atom\(TM\) CPU +(S|D|N|230|330)|CPU N[0-9]{3} )' /proc/cpuinfo; then
-			variant1=vuln
-			[ -z "$variant2" ] && variant2=immune
-			[ -z "$variant3" ] && variant3=immune
 		# https://github.com/crozone/SpectrePoC/issues/1 ^F E5200 => spectre 2 not vulnerable
 		# https://github.com/paboldin/meltdown-exploit/issues/19 ^F E5200 => meltdown vulnerable
 		# model name : Pentium(R) Dual-Core  CPU      E5200  @ 2.50GHz
-		elif grep -qE '^model name.+ Pentium\(R\) Dual-Core[[:space:]]+CPU[[:space:]]+E[0-9]{4}K? ' /proc/cpuinfo; then
+		if grep -qE '^model name.+ Pentium\(R\) Dual-Core[[:space:]]+CPU[[:space:]]+E[0-9]{4}K? ' /proc/cpuinfo; then
 			variant1=vuln
 			[ -z "$variant2" ] && variant2=immune
 			variant3=vuln
@@ -234,29 +242,28 @@ is_cpu_vulnerable()
 			variant3=immune
 			_debug "is_cpu_vulnerable: RDCL_NO is set so not vuln to meltdown"
 		fi
-	elif grep -q AuthenticAMD /proc/cpuinfo; then
+	elif [ "$cpu_vendor" = AuthenticAMD ]; then
 		# AMD revised their statement about variant2 => vulnerable
 		# https://www.amd.com/en/corporate/speculative-execution
 		variant1=vuln
 		variant2=vuln
 		[ -z "$variant3" ] && variant3=immune
-	elif grep -qi 'CPU implementer[[:space:]]*:[[:space:]]*0x41' /proc/cpuinfo; then
+	elif [ "$cpu_vendor" = ARM ]; then
 		# ARM
 		# reference: https://developer.arm.com/support/security-update
 		# some devices (phones or other) have several ARMs and as such different part numbers,
 		# an example is "bigLITTLE". we shouldn't rely on the first CPU only, so we check the whole list
-		cpupart_list=$(awk '/CPU part/         {print $4}' /proc/cpuinfo)
-		cpuarch_list=$(awk '/CPU architecture/ {print $3}' /proc/cpuinfo)
 		i=0
-		for cpupart in $cpupart_list
+		for cpupart in $cpu_part_list
 		do
 			i=$(( i + 1 ))
-			cpuarch=$(echo "$cpuarch_list" | awk '{ print $'$i' }')
+			# do NOT quote $cpu_arch_list below
+			# shellcheck disable=SC2086
+			cpuarch=$(echo $cpu_arch_list | awk '{ print $'$i' }')
 			_debug "checking cpu$i: <$cpupart> <$cpuarch>"
 			# some kernels report AArch64 instead of 8
 			[ "$cpuarch" = "AArch64" ] && cpuarch=8
 			if [ -n "$cpupart" ] && [ -n "$cpuarch" ]; then
-				cpu_friendly_name="ARM v$cpuarch model $cpupart"
 				# Cortex-R7 and Cortex-R8 are real-time and only used in medical devices or such
 				# I can't find their CPU part number, but it's probably not that useful anyway
 				# model R7 R8 A9    A15   A17   A57   A72    A73    A75
@@ -304,9 +311,41 @@ is_cpu_vulnerable()
 	return $?
 }
 
+is_cpu_specex_free()
+{
+	# return true (0) if the CPU doesn't do speculative execution, false (1) if it does.
+	# if it's not in the list we know, return false (1).
+	# source: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kernel/cpu/common.c#n882
+	# { X86_VENDOR_INTEL,     6, INTEL_FAM6_ATOM_CEDARVIEW,   X86_FEATURE_ANY },
+	# { X86_VENDOR_INTEL,     6, INTEL_FAM6_ATOM_CLOVERVIEW,  X86_FEATURE_ANY },
+	# { X86_VENDOR_INTEL,     6, INTEL_FAM6_ATOM_LINCROFT,    X86_FEATURE_ANY },
+	# { X86_VENDOR_INTEL,     6, INTEL_FAM6_ATOM_PENWELL,     X86_FEATURE_ANY },
+	# { X86_VENDOR_INTEL,     6, INTEL_FAM6_ATOM_PINEVIEW,    X86_FEATURE_ANY },
+	# { X86_VENDOR_CENTAUR,   5 },
+	# { X86_VENDOR_INTEL,     5 },
+	# { X86_VENDOR_NSC,       5 },
+	# { X86_VENDOR_ANY,       4 },
+	parse_cpu_details
+	if [ "$cpu_vendor" = GenuineIntel ]; then
+		if [ "$cpu_family" = 6 ]; then
+			if [ "$cpu_model" = "$INTEL_FAM6_ATOM_CEDARVIEW"  ]      || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_CLOVERVIEW" ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_LINCROFT"   ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_PENWELL"    ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_PINEVIEW"   ]; then
+				return 0
+			fi
+		elif [ "$cpu_family" = 5 ]; then
+			return 0
+		fi
+	fi
+	[ "$cpu_family" -eq 4 ] && return 0
+	return 1
+}
+
 show_header()
 {
-	_info "\033[1;34mSpectre and Meltdown mitigation detection tool v$VERSION\033[0m"
+	_info "Spectre and Meltdown mitigation detection tool v$VERSION"
 	_info
 }
 
@@ -377,7 +416,7 @@ while [ -n "$1" ]; do
 		opt_verbose=0
 		shift
 		case "$1" in
-			text|nrpe|json) opt_batch_format="$1"; shift;;
+			text|nrpe|json|prometheus) opt_batch_format="$1"; shift;;
 			--*) ;;    # allow subsequent flags
 			'') ;;     # allow nothing at all
 			*)
@@ -455,14 +494,15 @@ pstatus()
 pvulnstatus()
 {
 	if [ "$opt_batch" = 1 ]; then
+		case "$1" in
+			CVE-2017-5753) aka="SPECTRE VARIANT 1";;
+			CVE-2017-5715) aka="SPECTRE VARIANT 2";;
+			CVE-2017-5754) aka="MELTDOWN";;
+		esac
+
 		case "$opt_batch_format" in
 			text) _echo 0 "$1: $2 ($3)";;
 			json)
-				case "$1" in
-					CVE-2017-5753) aka="SPECTRE VARIANT 1";;
-					CVE-2017-5715) aka="SPECTRE VARIANT 2";;
-					CVE-2017-5754) aka="MELTDOWN";;
-				esac
 				case "$2" in
 					UNK)  is_vuln="null";;
 					VULN) is_vuln="true";;
@@ -472,6 +512,9 @@ pvulnstatus()
 				;;
 
 			nrpe)	[ "$2" = VULN ] && nrpe_vuln="$nrpe_vuln $1";;
+			prometheus)
+				prometheus_output="${prometheus_output:+$prometheus_output\n}specex_vuln_status{name=\"$aka\",cve=\"$1\",status=\"$2\",info=\"$3\"} 1"
+				;;
 		esac
 	fi
 
@@ -549,8 +592,6 @@ extract_vmlinux()
 	[ -n "$1" ] || return 1
 	# Prepare temp files:
 	vmlinuxtmp="$(mktemp /tmp/vmlinux-XXXXXX)"
-	# single quotes in trap cmd: will be expanded when signalled
-	trap 'rm -f $vmlinuxtmp' EXIT INT
 
 	# Initial attempt for uncompressed images or objects:
 	if check_vmlinux "$1"; then
@@ -579,27 +620,10 @@ mount_debugfs()
 	fi
 }
 
-umount_debugfs()
-{
-	if [ "$mounted_debugfs" = 1 ]; then
-		# umount debugfs if we did mount it ourselves
-		umount /sys/kernel/debug
-	fi
-}
-
 load_msr()
 {
 	modprobe msr 2>/dev/null && insmod_msr=1
 	_debug "attempted to load module msr, insmod_msr=$insmod_msr"
-}
-
-unload_msr()
-{
-	if [ "$insmod_msr" = 1 ]; then
-		# if we used modprobe ourselves, rmmod the module
-		rmmod msr 2>/dev/null
-		_debug "attempted to unload module msr, ret=$?"
-	fi
 }
 
 load_cpuid()
@@ -608,13 +632,34 @@ load_cpuid()
 	_debug "attempted to load module cpuid, insmod_cpuid=$insmod_cpuid"
 }
 
-unload_cpuid()
+read_cpuid()
 {
-	if [ "$insmod_cpuid" = 1 ]; then
-		# if we used modprobe ourselves, rmmod the module
-		rmmod cpuid 2>/dev/null
-		_debug "attempted to unload module cpuid, ret=$?"
+	_leaf="$1"
+	_bytenum="$2"
+	_and_operand="$3"
+
+	if [ ! -e /dev/cpu/0/cpuid ]; then
+		# try to load the module ourselves (and remember it so we can rmmod it afterwards)
+		load_cpuid
 	fi
+	if [ ! -e /dev/cpu/0/cpuid ]; then
+		return 2
+	fi
+
+	if [ "$opt_verbose" -ge 3 ]; then
+		dd if=/dev/cpu/0/cpuid bs=16 skip="$_leaf" iflag=skip_bytes count=1 >/dev/null 2>/dev/null
+		_debug "cpuid: reading leaf$_leaf of cpuid on cpu0, ret=$?"
+		_debug "cpuid: leaf$_leaf eax-ebx-ecx-edx: $(   dd if=/dev/cpu/0/cpuid bs=16 skip="$_leaf" iflag=skip_bytes count=1 2>/dev/null | od -x -A n)"
+		_debug "cpuid: leaf$_leaf edx higher byte is: $(dd if=/dev/cpu/0/cpuid bs=16 skip="$_leaf" iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip="$_bytenum" count=1 2>/dev/null | od -x -A n)"
+	fi
+	# getting proper byte of edx on leaf$_leaf of cpuinfo in decimal
+	_reg_byte=$(dd if=/dev/cpu/0/cpuid bs=16 skip="$_leaf" iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip="$_bytenum" count=1 2>/dev/null | od -t u1 -A n | awk '{print $1}')
+	_debug "cpuid: leaf$_leaf byte $_bytenum: $_reg_byte (decimal)"
+	_reg_bit=$(( _reg_byte & _and_operand ))
+	_debug "cpuid: leaf$_leaf byte $_bytenum & $_and_operand = $_reg_bit"
+	[ "$_reg_bit" -eq 0 ] && return 1
+	# $_reg_bit is > 0, so the bit was found: return true (aka 0)
+	return 0
 }
 
 dmesg_grep()
@@ -639,68 +684,171 @@ is_coreos()
 	return 1
 }
 
+parse_cpu_details()
+{
+	[ "$parse_cpu_details_done" = 1 ] && return 0
+	cpu_vendor=$(  grep '^vendor_id'  /proc/cpuinfo | awk '{print $3}' | head -1)
+	cpu_friendly_name=$(grep '^model name' /proc/cpuinfo | cut -d: -f2- | head -1 | sed -e 's/^ *//')
+	# special case for ARM follows
+	if grep -qi 'CPU implementer[[:space:]]*:[[:space:]]*0x41' /proc/cpuinfo; then
+		cpu_vendor='ARM'
+		# some devices (phones or other) have several ARMs and as such different part numbers,
+		# an example is "bigLITTLE", so we need to store the whole list, this is needed for is_cpu_vulnerable
+		cpu_part_list=$(awk '/CPU part/         {print $4}' /proc/cpuinfo)
+		cpu_arch_list=$(awk '/CPU architecture/ {print $3}' /proc/cpuinfo)
+		# take the first one to fill the friendly name, do NOT quote the vars below
+		# shellcheck disable=SC2086
+		cpu_arch=$(echo $cpu_arch_list | awk '{ print $1 }')
+		# shellcheck disable=SC2086
+		cpu_part=$(echo $cpu_part_list | awk '{ print $1 }')
+		[ "$cpu_arch" = "AArch64" ] && cpu_arch=8
+		cpu_friendly_name="ARM"
+		[ -n "$cpu_arch" ] && cpu_friendly_name="$cpu_friendly_name v$cpu_arch"
+		[ -n "$cpu_part" ] && cpu_friendly_name="$cpu_friendly_name model $cpu_part"
+	fi
+
+	cpu_family=$(  grep '^cpu family' /proc/cpuinfo | awk '{print $4}' | grep -E '^[0-9]+$' | head -1)
+	cpu_model=$(   grep '^model'      /proc/cpuinfo | awk '{print $3}' | grep -E '^[0-9]+$' | head -1)
+	cpu_stepping=$(grep '^stepping'   /proc/cpuinfo | awk '{print $3}' | grep -E '^[0-9]+$' | head -1)
+	cpu_ucode=$(  grep '^microcode'   /proc/cpuinfo | awk '{print $3}' | head -1)
+
+	# also define those that we will need in other funcs
+	# taken from ttps://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/include/asm/intel-family.h
+	# shellcheck disable=SC2034
+	{
+	INTEL_FAM6_CORE_YONAH=$(( 0x0E ))
+
+	INTEL_FAM6_CORE2_MEROM=$(( 0x0F ))
+	INTEL_FAM6_CORE2_MEROM_L=$(( 0x16 ))
+	INTEL_FAM6_CORE2_PENRYN=$(( 0x17 ))
+	INTEL_FAM6_CORE2_DUNNINGTON=$(( 0x1D ))
+
+	INTEL_FAM6_NEHALEM=$(( 0x1E ))
+	INTEL_FAM6_NEHALEM_G=$(( 0x1F ))
+	INTEL_FAM6_NEHALEM_EP=$(( 0x1A ))
+	INTEL_FAM6_NEHALEM_EX=$(( 0x2E ))
+
+	INTEL_FAM6_WESTMERE=$(( 0x25 ))
+	INTEL_FAM6_WESTMERE_EP=$(( 0x2C ))
+	INTEL_FAM6_WESTMERE_EX=$(( 0x2F ))
+
+	INTEL_FAM6_SANDYBRIDGE=$(( 0x2A ))
+	INTEL_FAM6_SANDYBRIDGE_X=$(( 0x2D ))
+	INTEL_FAM6_IVYBRIDGE=$(( 0x3A ))
+	INTEL_FAM6_IVYBRIDGE_X=$(( 0x3E ))
+
+	INTEL_FAM6_HASWELL_CORE=$(( 0x3C ))
+	INTEL_FAM6_HASWELL_X=$(( 0x3F ))
+	INTEL_FAM6_HASWELL_ULT=$(( 0x45 ))
+	INTEL_FAM6_HASWELL_GT3E=$(( 0x46 ))
+
+	INTEL_FAM6_BROADWELL_CORE=$(( 0x3D ))
+	INTEL_FAM6_BROADWELL_GT3E=$(( 0x47 ))
+	INTEL_FAM6_BROADWELL_X=$(( 0x4F ))
+	INTEL_FAM6_BROADWELL_XEON_D=$(( 0x56 ))
+
+	INTEL_FAM6_SKYLAKE_MOBILE=$(( 0x4E ))
+	INTEL_FAM6_SKYLAKE_DESKTOP=$(( 0x5E ))
+	INTEL_FAM6_SKYLAKE_X=$(( 0x55 ))
+	INTEL_FAM6_KABYLAKE_MOBILE=$(( 0x8E ))
+	INTEL_FAM6_KABYLAKE_DESKTOP=$(( 0x9E ))
+
+	# /* "Small Core" Processors (Atom) */
+
+	INTEL_FAM6_ATOM_PINEVIEW=$(( 0x1C ))
+	INTEL_FAM6_ATOM_LINCROFT=$(( 0x26 ))
+	INTEL_FAM6_ATOM_PENWELL=$(( 0x27 ))
+	INTEL_FAM6_ATOM_CLOVERVIEW=$(( 0x35 ))
+	INTEL_FAM6_ATOM_CEDARVIEW=$(( 0x36 ))
+	INTEL_FAM6_ATOM_SILVERMONT1=$(( 0x37 ))
+	INTEL_FAM6_ATOM_SILVERMONT2=$(( 0x4D ))
+	INTEL_FAM6_ATOM_AIRMONT=$(( 0x4C ))
+	INTEL_FAM6_ATOM_MERRIFIELD=$(( 0x4A ))
+	INTEL_FAM6_ATOM_MOOREFIELD=$(( 0x5A ))
+	INTEL_FAM6_ATOM_GOLDMONT=$(( 0x5C ))
+	INTEL_FAM6_ATOM_DENVERTON=$(( 0x5F ))
+	INTEL_FAM6_ATOM_GEMINI_LAKE=$(( 0x7A ))
+
+	# /* Xeon Phi */
+
+	INTEL_FAM6_XEON_PHI_KNL=$(( 0x57 ))
+	INTEL_FAM6_XEON_PHI_KNM=$(( 0x85 ))
+	}
+	parse_cpu_details_done=1
+}
+
 is_ucode_blacklisted()
 {
+	parse_cpu_details
 	# if it's not an Intel, don't bother: it's not blacklisted
-	grep -q GenuineIntel /proc/cpuinfo || return 1
+	[ "$cpu_vendor" = GenuineIntel ] || return 1
 	# it also needs to be family=6
-	grep -qE '^cpu family.+ 6$' /proc/cpuinfo || return 1
-	cpu_model=$(   grep '^model'    /proc/cpuinfo | awk '{print $3}' | grep -E '^[0-9]+$' | head -1)
-	cpu_stepping=$(grep '^stepping' /proc/cpuinfo | awk '{print $3}' | grep -E '^[0-9]+$' | head -1)
-	cpu_ucode=$(grep '^microcode' /proc/cpuinfo | awk '{print $3}' | head -1)
+	[ "$cpu_family" = 6 ] || return 1
 	# now, check each known bad microcode
-	# source: http://lkml.iu.edu/hypermail/linux/kernel/1801.2/06349.html
-	INTEL_FAM6_KABYLAKE_DESKTOP=158
-	INTEL_FAM6_KABYLAKE_MOBILE=142
-	INTEL_FAM6_SKYLAKE_X=85
-	INTEL_FAM6_SKYLAKE_MOBILE=78
-	INTEL_FAM6_SKYLAKE_DESKTOP=94
-	INTEL_FAM6_BROADWELL_CORE=61
-	INTEL_FAM6_BROADWELL_GT3E=71
-	INTEL_FAM6_HASWELL_ULT=69
-	INTEL_FAM6_HASWELL_GT3E=70
-	INTEL_FAM6_HASWELL_CORE=60
-	INTEL_FAM6_IVYBRIDGE_X=62
-	INTEL_FAM6_HASWELL_X=63
-	INTEL_FAM6_BROADWELL_XEON_D=86
-	INTEL_FAM6_BROADWELL_GT3E=71
-	INTEL_FAM6_BROADWELL_X=79
+	# source: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kernel/cpu/intel.c#n105
+	# 2018-02-08 update: https://newsroom.intel.com/wp-content/uploads/sites/11/2018/02/microcode-update-guidance.pdf
 	# model,stepping,microcode
+	ucode_found="model $cpu_model stepping $cpu_stepping ucode $cpu_ucode"
 	for tuple in \
-		$INTEL_FAM6_KABYLAKE_DESKTOP,0x0B,0x80      \
-		$INTEL_FAM6_KABYLAKE_MOBILE,0x0A,0x80       \
-		$INTEL_FAM6_KABYLAKE_MOBILE,0x09,0x80       \
-		$INTEL_FAM6_KABYLAKE_DESKTOP,0x09,0x80      \
-		$INTEL_FAM6_SKYLAKE_X,0x04,0x0200003C       \
-		$INTEL_FAM6_SKYLAKE_MOBILE,0x03,0x000000C2  \
-		$INTEL_FAM6_SKYLAKE_DESKTOP,0x03,0x000000C2 \
-		$INTEL_FAM6_BROADWELL_CORE,0x04,0x28        \
-		$INTEL_FAM6_BROADWELL_GT3E,0x01,0x0000001B  \
-		$INTEL_FAM6_HASWELL_ULT,0x01,0x21           \
-		$INTEL_FAM6_HASWELL_GT3E,0x01,0x18          \
-		$INTEL_FAM6_HASWELL_CORE,0x03,0x23          \
-		$INTEL_FAM6_IVYBRIDGE_X,0x04,0x42a          \
-		$INTEL_FAM6_HASWELL_X,0x02,0x3b             \
-		$INTEL_FAM6_HASWELL_X,0x04,0x10             \
-		$INTEL_FAM6_HASWELL_CORE,0x03,0x23          \
-		$INTEL_FAM6_BROADWELL_XEON_D,0x02,0x14      \
-		$INTEL_FAM6_BROADWELL_XEON_D,0x03,0x7000011 \
-		$INTEL_FAM6_BROADWELL_GT3E,0x01,0x0000001B  \
-		$INTEL_FAM6_BROADWELL_X,0x01,0x0b000025     \
-		$INTEL_FAM6_KABYLAKE_DESKTOP,0x09,0x80      \
-		$INTEL_FAM6_SKYLAKE_X,0x03,0x100013e        \
-		$INTEL_FAM6_SKYLAKE_X,0x04,0x200003c
+		$INTEL_FAM6_KABYLAKE_DESKTOP,0x0B,0x80 \
+		$INTEL_FAM6_KABYLAKE_DESKTOP,0x0A,0x80 \
+		$INTEL_FAM6_KABYLAKE_DESKTOP,0x09,0x80 \
+		$INTEL_FAM6_KABYLAKE_MOBILE,0x0A,0x80  \
+		$INTEL_FAM6_KABYLAKE_MOBILE,0x09,0x80  \
+		$INTEL_FAM6_SKYLAKE_X,0x03,0x0100013e  \
+		$INTEL_FAM6_SKYLAKE_X,0x04,0x02000036  \
+		$INTEL_FAM6_SKYLAKE_X,0x04,0x0200003a  \
+		$INTEL_FAM6_SKYLAKE_X,0x04,0x0200003c  \
+		$INTEL_FAM6_BROADWELL_CORE,0x04,0x28   \
+		$INTEL_FAM6_BROADWELL_GT3E,0x01,0x1b   \
+		$INTEL_FAM6_BROADWELL_XEON_D,0x02,0x14 \
+		$INTEL_FAM6_BROADWELL_XEON_D,0x03,0x07000011 \
+		$INTEL_FAM6_BROADWELL_X,0x01,0x0b000023 \
+		$INTEL_FAM6_BROADWELL_X,0x01,0x0b000025 \
+		$INTEL_FAM6_HASWELL_ULT,0x01,0x21      \
+		$INTEL_FAM6_HASWELL_GT3E,0x01,0x18     \
+		$INTEL_FAM6_HASWELL_CORE,0x03,0x23     \
+		$INTEL_FAM6_HASWELL_X,0x02,0x3b        \
+		$INTEL_FAM6_HASWELL_X,0x04,0x10        \
+		$INTEL_FAM6_IVYBRIDGE_X,0x04,0x42a     \
+		$INTEL_FAM6_SANDYBRIDGE_X,0x06,0x61b   \
+		$INTEL_FAM6_SANDYBRIDGE_X,0x07,0x712
 	do
 		model=$(echo $tuple | cut -d, -f1)
 		stepping=$(( $(echo $tuple | cut -d, -f2) ))
 		ucode=$(echo $tuple | cut -d, -f3)
 		if [ "$cpu_model" = "$model" ] && [ "$cpu_stepping" = "$stepping" ] && echo "$cpu_ucode" | grep -qi "^$ucode$"; then
 			_debug "is_ucode_blacklisted: we have a match! ($cpu_model/$cpu_stepping/$cpu_ucode)"
-			bad_ucode_found="Intel CPU Family 6 Model $cpu_model Stepping $cpu_stepping with microcode $cpu_ucode"
 			return 0
 		fi
 	done
 	_debug "is_ucode_blacklisted: no ($cpu_model/$cpu_stepping/$cpu_ucode)"
+	return 1
+}
+
+is_skylake_cpu()
+{
+	# is this a skylake cpu?
+	# return 0 if yes, 1 otherwise
+	#if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+	#	    boot_cpu_data.x86 == 6) {
+	#		switch (boot_cpu_data.x86_model) {
+	#		case INTEL_FAM6_SKYLAKE_MOBILE:
+	#		case INTEL_FAM6_SKYLAKE_DESKTOP:
+	#		case INTEL_FAM6_SKYLAKE_X:
+	#		case INTEL_FAM6_KABYLAKE_MOBILE:
+	#		case INTEL_FAM6_KABYLAKE_DESKTOP:
+	#			return true;
+	parse_cpu_details
+	[ "$cpu_vendor" = GenuineIntel ] || return 1
+	[ "$cpu_family" = 6 ] || return 1
+	if [ "$cpu_model" = $INTEL_FAM6_SKYLAKE_MOBILE        ] || \
+		[ "$cpu_model" = $INTEL_FAM6_SKYLAKE_DESKTOP  ] || \
+		[ "$cpu_model" = $INTEL_FAM6_SKYLAKE_X        ] || \
+		[ "$cpu_model" = $INTEL_FAM6_KABYLAKE_MOBILE  ] || \
+		[ "$cpu_model" = $INTEL_FAM6_KABYLAKE_DESKTOP ]; then
+		return 0
+	fi
 	return 1
 }
 
@@ -725,9 +873,6 @@ if [ "$opt_coreos" = 1 ]; then
 	mount_debugfs
 	toolbox --ephemeral --bind-ro /dev/cpu:/dev/cpu -- sh -c "dnf install -y binutils which && /media/root$PWD/$0 $* --coreos-within-toolbox"
 	exitcode=$?
-	mount_debugfs
-	unload_cpuid
-	unload_msr
 	exit $exitcode
 else
 	if is_coreos; then
@@ -736,9 +881,9 @@ else
 	fi
 fi
 
-# root check (only for live mode, for offline mode, we already checked if we could read the files)
-
+parse_cpu_details
 if [ "$opt_live" = 1 ]; then
+	# root check (only for live mode, for offline mode, we already checked if we could read the files)
 	if [ "$(id -u)" -ne 0 ]; then
 		_warn "Note that you should launch this script with root privileges to get accurate information."
 		_warn "We'll proceed but you might see permission denied errors."
@@ -747,8 +892,6 @@ if [ "$opt_live" = 1 ]; then
 	fi
 	_info "Checking for vulnerabilities on current system"
 	_info "Kernel is \033[35m$(uname -s) $(uname -r) $(uname -v) $(uname -m)\033[0m"
-	# call is_cpu_vulnerable to fill the cpu_friendly_name var
-	is_cpu_vulnerable 0
 	_info "CPU is \033[35m$cpu_friendly_name\033[0m"
 
 	# try to find the image of the current running kernel
@@ -782,6 +925,8 @@ if [ "$opt_live" = 1 ]; then
 		[ -e "/boot/kernel-genkernel-$(uname -m)-$(uname -r)" ] && opt_kernel="/boot/kernel-genkernel-$(uname -m)-$(uname -r)"
 		# NixOS:
 		[ -e "/run/booted-system/kernel" ] && opt_kernel="/run/booted-system/kernel"
+		# systemd kernel-install:
+		[ -e "/etc/machine-id" ] && [ -e "/boot/$(cat /etc/machine-id)/$(uname -r)/linux" ] && opt_kernel="/boot/$(cat /etc/machine-id)/$(uname -r)/linux"
 	fi
 
 	# system.map
@@ -806,6 +951,7 @@ if [ "$opt_live" = 1 ]; then
 	fi
 else
 	_info "Checking for vulnerabilities against specified kernel"
+	_info "CPU is \033[35m$cpu_friendly_name\033[0m"
 fi
 
 if [ -n "$opt_kernel" ]; then
@@ -845,6 +991,8 @@ if [ -e "$opt_kernel" ]; then
 	if ! which readelf >/dev/null 2>&1; then
 		_debug "readelf not found"
 		vmlinux_err="missing 'readelf' tool, please install it, usually it's in the 'binutils' package"
+	elif [ "$opt_sysfs_only" = 1 ]; then
+		vmlinux_err='kernel image decompression skipped'
 	else
 		extract_vmlinux "$opt_kernel"
 	fi
@@ -854,6 +1002,20 @@ else
 fi
 if [ -z "$vmlinux" ] || [ ! -r "$vmlinux" ]; then
 	[ -z "$vmlinux_err" ] && vmlinux_err="couldn't extract your kernel from $opt_kernel"
+else
+	vmlinux_version=$(strings "$vmlinux" 2>/dev/null | grep '^Linux version ' | head -1)
+	if [ -n "$vmlinux_version" ]; then
+		# in live mode, check if the img we found is the correct one
+		if [ "$opt_live" = 1 ]; then
+			_verbose "Kernel image is \033[35m$vmlinux_version"
+			if ! echo "$vmlinux_version" | grep -qF "$(uname -r)" || \
+				! echo "$vmlinux_version" | grep -qF "$(uname -v)"; then
+				_warn "Possible disrepancy between your running kernel and the image we found ($opt_kernel), results might be incorrect"
+			fi
+		else
+			_info "Kernel image is \033[35m$vmlinux_version"
+		fi
+	fi
 fi
 
 _info
@@ -918,31 +1080,15 @@ check_cpu()
 	fi
 
 	_info_nol "    * CPU indicates IBRS capability: "
-	if [ ! -e /dev/cpu/0/cpuid ]; then
-		# try to load the module ourselves (and remember it so we can rmmod it afterwards)
-		load_cpuid
-	fi
-	if [ ! -e /dev/cpu/0/cpuid ]; then
+	# from kernel src: { X86_FEATURE_SPEC_CTRL,        CPUID_EDX,26, 0x00000007, 0 },
+	read_cpuid 7 15 4; ret=$?
+	if [ $ret -eq 0 ]; then
+		pstatus green YES "SPEC_CTRL feature bit"
+		cpuid_spec_ctrl=1
+	elif [ $ret -eq 2 ]; then
 		pstatus yellow UNKNOWN "couldn't read /dev/cpu/0/cpuid, is cpuid support enabled in your kernel?"
 	else
-		# from kernel src: { X86_FEATURE_SPEC_CTRL,        CPUID_EDX,26, 0x00000007, 0 },
-		if [ "$opt_verbose" -ge 3 ]; then
-			dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 >/dev/null 2>/dev/null
-			_debug "cpuid: reading leaf7 of cpuid on cpu0, ret=$?"
-			_debug "cpuid: leaf7 eax-ebx-ecx-edx: $(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | od -x -A n)"
-			_debug "cpuid: leaf7 edx higher byte is: $(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=15 count=1 2>/dev/null | od -x -A n)"
-		fi
-		# getting high byte of edx on leaf7 of cpuinfo in decimal
-		edx_hb=$(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=15 count=1 2>/dev/null | od -t u -A n | awk '{print $1}')
-		_debug "cpuid: leaf7 edx higher byte: $edx_hb (decimal)"
-		edx_bit26=$(( edx_hb & 4 ))
-		_debug "cpuid: edx_bit26=$edx_bit26"
-		if [ "$edx_bit26" -eq 4 ]; then
-			pstatus green YES "SPEC_CTRL feature bit"
-			cpuid_spec_ctrl=1
-		else
-			pstatus red NO
-		fi
+		pstatus red NO
 	fi
 
 	# hardware support according to kernel
@@ -979,29 +1125,18 @@ check_cpu()
 		fi
 	fi
 
+
 	_info_nol "    * CPU indicates IBPB capability: "
-	if [ ! -e /dev/cpu/0/cpuid ]; then
+	# CPUID EAX=0x80000008, ECX=0x00 return EBX[12] indicates support for just IBPB.
+	read_cpuid 2147483656 5 16; ret=$?
+	if [ $ret -eq 0 ]; then
+		pstatus green YES "IBPB_SUPPORT feature bit"
+	elif [ "$cpuid_spec_ctrl" = 1 ]; then
+		pstatus green YES "SPEC_CTRL feature bit"
+	elif [ $ret -eq 2 ]; then
 		pstatus yellow UNKNOWN "couldn't read /dev/cpu/0/cpuid, is cpuid support enabled in your kernel?"
 	else
-		# CPUID EAX=0x80000008, ECX=0x00 return EBX[12] indicates support for just IBPB.
-		if [ "$opt_verbose" -ge 3 ]; then
-			dd if=/dev/cpu/0/cpuid bs=16 skip=2147483656 iflag=skip_bytes count=1 >/dev/null 2>/dev/null
-			_debug "cpuid: reading leaf80000008 of cpuid on cpu0, ret=$?"
-			_debug "cpuid: leaf80000008 eax-ebx-ecx-edx: $(dd if=/dev/cpu/0/cpuid bs=16 skip=2147483656 iflag=skip_bytes count=1 2>/dev/null | od -x -A n)"
-			_debug "cpuid: leaf80000008 ebx 3rd byte is: $(dd if=/dev/cpu/0/cpuid bs=16 skip=2147483656 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=5 count=1 2>/dev/null | od -x -A n)"
-		fi
-		# getting high byte of edx on leaf7 of cpuinfo in decimal
-		ebx_b3=$(dd if=/dev/cpu/0/cpuid bs=16 skip=2147483656 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=5 count=1 2>/dev/null | od -t u -A n | awk '{print $1}')
-		_debug "cpuid: leaf80000008 ebx 3rd byte: $ebx_b3 (decimal)"
-		ebx_bit12=$(( ebx_b3 & 16 ))
-		_debug "cpuid: ebx_bit12=$ebx_bit12"
-		if [ "$ebx_bit12" -eq 16 ]; then
-			pstatus green YES "IBPB_SUPPORT feature bit"
-		elif [ "$cpuid_spec_ctrl" = 1 ]; then
-			pstatus green YES "SPEC_CTRL feature bit"
-		else
-			pstatus red NO
-		fi
+		pstatus red NO
 	fi
 
 	# STIBP
@@ -1016,53 +1151,29 @@ check_cpu()
 	fi
 
 	_info_nol "    * CPU indicates STIBP capability: "
-	if [ ! -e /dev/cpu/0/cpuid ]; then
+	# A processor supports STIBP if it enumerates CPUID (EAX=7H,ECX=0):EDX[27] as 1
+	read_cpuid 7 15 8; ret=$?
+	if [ $ret -eq 0 ]; then
+		pstatus green YES
+	elif [ $ret -eq 2 ]; then
 		pstatus yellow UNKNOWN "couldn't read /dev/cpu/0/cpuid, is cpuid support enabled in your kernel?"
 	else
-		# A processor supports STIBP if it enumerates CPUID (EAX=7H,ECX=0):EDX[27] as 1
-		if [ "$opt_verbose" -ge 3 ]; then
-			dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 >/dev/null 2>/dev/null
-			_debug "cpuid: reading leaf7 of cpuid on cpu0, ret=$?"
-			_debug "cpuid: leaf7 eax-ebx-ecx-edx: $(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | od -x -A n)"
-			_debug "cpuid: leaf7 edx higher byte is: $(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=15 count=1 2>/dev/null | od -x -A n)"
-		fi
-		# getting high byte of edx on leaf7 of cpuinfo in decimal
-		edx_hb=$(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=15 count=1 2>/dev/null | od -t u -A n | awk '{print $1}')
-		_debug "cpuid: leaf7 edx higher byte: $edx_hb (decimal)"
-		edx_bit27=$(( edx_hb & 8 ))
-		_debug "cpuid: edx_bit27=$edx_bit27"
-		if [ "$edx_bit27" -eq 8 ]; then
-			pstatus green YES
-		else
-			pstatus red NO
-		fi
+		pstatus red NO
 	fi
 
 	_info     "  * Enhanced IBRS (IBRS_ALL)"
 	_info_nol "    * CPU indicates ARCH_CAPABILITIES MSR availability: "
 	cpuid_arch_capabilities=-1
-	if [ ! -e /dev/cpu/0/cpuid ]; then
+	# A processor supports STIBP if it enumerates CPUID (EAX=7H,ECX=0):EDX[27] as 1
+	read_cpuid 7 15 32; ret=$?
+	if [ $ret -eq 0 ]; then
+		pstatus green YES
+		cpuid_arch_capabilities=1
+	elif [ $ret -eq 2 ]; then
 		pstatus yellow UNKNOWN "couldn't read /dev/cpu/0/cpuid, is cpuid support enabled in your kernel?"
 	else
-		# A processor supports STIBP if it enumerates CPUID (EAX=7H,ECX=0):EDX[27] as 1
-		if [ "$opt_verbose" -ge 3 ]; then
-			dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 >/dev/null 2>/dev/null
-			_debug "cpuid: reading leaf7 of cpuid on cpu0, ret=$?"
-			_debug "cpuid: leaf7 eax-ebx-ecx-edx: $(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | od -x -A n)"
-			_debug "cpuid: leaf7 edx higher byte is: $(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=15 count=1 2>/dev/null | od -x -A n)"
-		fi
-		# getting high byte of edx on leaf7 of cpuinfo in decimal
-		edx_hb=$(dd if=/dev/cpu/0/cpuid bs=16 skip=7 iflag=skip_bytes count=1 2>/dev/null | dd bs=1 skip=15 count=1 2>/dev/null | od -t u -A n | awk '{print $1}')
-		_debug "cpuid: leaf7 edx higher byte: $edx_hb (decimal)"
-		edx_bit29=$(( edx_hb & 32 ))
-		_debug "cpuid: edx_bit29=$edx_bit29"
-		if [ "$edx_bit27" -eq 32 ]; then
-			pstatus green YES
-			cpuid_arch_capabilities=1
-		else
-			pstatus red NO
-			cpuid_arch_capabilities=0
-		fi
+		pstatus red NO
+		cpuid_arch_capabilities=0
 	fi
 
 	_info_nol "    * ARCH_CAPABILITIES MSR advertises IBRS_ALL capability: "
@@ -1110,7 +1221,7 @@ check_cpu()
 
 	_info_nol "  * CPU microcode is known to cause stability problems: "
 	if is_ucode_blacklisted; then
-		pstatus red YES "$bad_ucode_found"
+		pstatus red YES "$ucode_found"
 		_warn
 		_warn "The microcode your CPU is running on is known to cause instability problems,"
 		_warn "such as intempestive reboots or random crashes."
@@ -1118,7 +1229,7 @@ check_cpu()
 		_warn "the mitigations for Spectre), or upgrade to a newer one if available."
 		_warn
 	else
-		pstatus green NO
+		pstatus blue NO "$ucode_found"
 	fi
 
 	_info     "* CPU vulnerability to the three speculative execution attacks variants"
@@ -1133,6 +1244,28 @@ check_cpu()
 
 	_info
 }
+
+check_redhat_canonical_spectre()
+{
+	# if we were already called, don't do it again
+	[ -n "$redhat_canonical_spectre" ] && return
+
+	if ! which strings >/dev/null 2>&1; then
+		redhat_canonical_spectre=-1
+	else
+		# Red Hat / Ubuntu specific variant1 patch is difficult to detect,
+		# let's use the same way than the official Red Hat detection script,
+		# and detect their specific variant2 patch. If it's present, it means
+		# that the variant1 patch is also present (both were merged at the same time)
+		if strings "$vmlinux" | grep -qw noibrs && strings "$vmlinux" | grep -qw noibpb; then
+			_debug "found redhat/canonical version of the variant2 patch (implies variant1)"
+			redhat_canonical_spectre=1
+		else
+			redhat_canonical_spectre=0
+		fi
+	fi
+}
+
 
 ###################
 # SPECTRE VARIANT 1
@@ -1184,10 +1317,20 @@ check_variant1()
 			fi
 		fi
 
-		if [ "$opt_verbose" -ge 2 ] || [ "$v1_mask_nospec" != 1 ]; then
+		_info_nol "* Kernel has the Red Hat/Ubuntu patch: "
+		check_redhat_canonical_spectre
+		if [ "$redhat_canonical_spectre" = -1 ]; then
+			pstatus yellow UNKNOWN "missing 'strings' tool, please install it, usually it's in the binutils package"
+		elif [ "$redhat_canonical_spectre" = 1 ]; then
+			pstatus green YES
+		else
+			pstatus red NO
+		fi
+
+		if [ "$opt_verbose" -ge 2 ] || ( [ "$v1_mask_nospec" != 1 ] && [ "$redhat_canonical_spectre" != 1 ] ); then
 			# this is a slow heuristic and we don't need it if we already know the kernel is patched
 			# but still show it in verbose mode
-			_info_nol "* Checking count of LFENCE opcodes in kernel: "
+			_info_nol "* Checking count of LFENCE instructions following a jump in kernel... "
 			if [ -n "$vmlinux_err" ]; then
 				pstatus yellow UNKNOWN "couldn't check ($vmlinux_err)"
 			else
@@ -1199,12 +1342,14 @@ check_variant1()
 					# in patched kernels, this is more around 70-80, sometimes way higher (100+)
 					# v0.13: 68 found in a 3.10.23-xxxx-std-ipv6-64 (with lots of modules compiled-in directly), which doesn't have the LFENCE patches,
 					# so let's push the threshold to 70.
-					nb_lfence=$(objdump -d "$vmlinux" | grep -wc 'lfence')
-					if [ "$nb_lfence" -lt 70 ]; then
-						pstatus red NO "only $nb_lfence opcodes found, should be >= 70, heuristic to be improved when official patches become available"
+					# v0.33+: now only count lfence opcodes after a jump, way less error-prone
+					# non patched kernel have between 0 and 20 matches, patched ones have at least 40-45
+					nb_lfence=$(objdump -d "$vmlinux" | grep -w -B1 lfence | grep -Ewc 'jmp|jne|je')
+					if [ "$nb_lfence" -lt 30 ]; then
+						pstatus red NO "only $nb_lfence jump-then-lfence instructions found, should be >= 30 (heuristic)"
 					else
 						v1_lfence=1
-						pstatus green YES "$nb_lfence opcodes found, which is >= 70, heuristic to be improved when official patches become available"
+						pstatus green YES "$nb_lfence jump-then-lfence instructions found, which is >= 30 (heuristic)"
 					fi
 				fi
 			fi
@@ -1225,8 +1370,10 @@ check_variant1()
 		# if msg is empty, sysfs check didn't fill it, rely on our own test
 		if [ "$v1_mask_nospec" = 1 ]; then
 			pvulnstatus $cve OK "Kernel source has been patched to mitigate the vulnerability (array_index_mask_nospec)"
+		elif [ "$redhat_canonical_spectre" = 1 ]; then
+			pvulnstatus $cve OK "Kernel source has been patched to mitigate the vulnerability (Red Hat/Ubuntu patch)"
 		elif [ "$v1_lfence" = 1 ]; then
-			pvulnstatus $cve OK "Kernel source has PROBABLY been patched to mitigate the vulnerability (LFENCE opcodes heuristic)"
+			pvulnstatus $cve OK "Kernel source has PROBABLY been patched to mitigate the vulnerability (jump-then-lfence instructions heuristic)"
 		elif [ "$vmlinux_err" ]; then
 			pvulnstatus $cve UNK "Couldn't find kernel image or tools missing to execute the checks"
 		else
@@ -1270,7 +1417,7 @@ check_variant2()
 				if [ -e "$dir/ibrs_enabled" ]; then
 					# if the file is there, we have IBRS compiled-in
 					# /sys/kernel/debug/ibrs_enabled: vanilla
-					# /sys/kernel/debug/x86/ibrs_enabled: RedHat (see https://access.redhat.com/articles/3311301)
+					# /sys/kernel/debug/x86/ibrs_enabled: Red Hat (see https://access.redhat.com/articles/3311301)
 					# /proc/sys/kernel/ibrs_enabled: OpenSUSE tumbleweed
 					pstatus green YES
 					ibrs_knob_dir=$dir
@@ -1312,6 +1459,13 @@ check_variant2()
 			fi
 		fi
 		if [ "$ibrs_supported" != 1 ]; then
+			check_redhat_canonical_spectre
+			if [ "$redhat_canonical_spectre" = 1 ]; then
+				pstatus green YES "Red Hat/Ubuntu patch"
+				ibrs_supported=1
+			fi
+		fi
+		if [ "$ibrs_supported" != 1 ]; then
 			if [ "$ibrs_can_tell" = 1 ]; then
 				pstatus red NO
 			else
@@ -1340,9 +1494,7 @@ check_variant2()
 						;;
 					0)
 						pstatus red NO
-						if [ "$opt_verbose" -ge 2 ]; then
-							_info "    - To enable, \`echo 1 > $ibrs_knob_dir/ibrs_enabled' as root. If you don't have hardware support, you'll get an error."
-						fi
+						_verbose "    - To enable, \`echo 1 > $ibrs_knob_dir/ibrs_enabled' as root. If you don't have hardware support, you'll get an error."
 						;;
 					1 | 2) pstatus green YES;;
 					*)     pstatus yellow UNKNOWN;;
@@ -1368,9 +1520,7 @@ check_variant2()
 						;;
 					0 | 1)
 						pstatus red NO
-						if [ "$opt_verbose" -ge 2 ]; then
-							_info "    - To enable, \`echo 2 > $ibrs_knob_dir/ibrs_enabled' as root. If you don't have hardware support, you'll get an error."
-						fi
+						_verbose "    - To enable, \`echo 2 > $ibrs_knob_dir/ibrs_enabled' as root. If you don't have hardware support, you'll get an error."
 						;;
 					2) pstatus green YES;;
 					*) pstatus yellow UNKNOWN;;
@@ -1392,9 +1542,7 @@ check_variant2()
 					;;
 				0)
 					pstatus red NO
-					if [ "$opt_verbose" -ge 2 ]; then
-						_info "    - To enable, \`echo 1 > $ibrs_knob_dir/ibpb_enabled' as root. If you don't have hardware support, you'll get an error."
-					fi
+					_verbose "    - To enable, \`echo 1 > $ibrs_knob_dir/ibpb_enabled' as root. If you don't have hardware support, you'll get an error."
 					;;
 				1) pstatus green YES;;
 				2) pstatus green YES "IBPB used instead of IBRS in all kernel entrypoints";;
@@ -1403,9 +1551,6 @@ check_variant2()
 		else
 			pstatus blue N/A "not testable in offline mode"
 		fi
-
-		unload_msr
-		unload_cpuid
 
 		_info "* Mitigation 2"
 		_info_nol "  * Kernel compiled with retpoline option: "
@@ -1487,19 +1632,6 @@ check_variant2()
 				pstatus red NO
 			fi
 		fi
-
-		_info_nol "  * Retpoline enabled: "
-		if [ "$opt_live" = 1 ]; then
-			# kernel adds this flag when retpoline is supported and enabled,
-			# regardless of the fact that it's minimal / full and generic / amd
-			if grep -qw retpoline /proc/cpuinfo; then
-				pstatus green YES
-			else
-				pstatus red NO
-			fi
-		else
-			pstatus blue N/A "can't check this in offline mode"
-		fi
 	elif [ "$sys_interface_available" = 0 ]; then
 		# we have no sysfs but were asked to use it only!
 		msg="/sys vulnerability interface use forced, but it's not available!"
@@ -1522,6 +1654,8 @@ check_variant2()
 				pvulnstatus $cve OK "IBRS is mitigating the vulnerability"
 			elif [ "$ibpb_enabled" = 2 ]; then
 				pvulnstatus $cve OK "Full IBPB is mitigating the vulnerability"
+			elif [ "$ibrs_supported" = 1 ] && [ "$cpuid_spec_ctrl" != 1 ]; then
+				pvulnstatus $cve VULN "Your kernel is compiled with IBRS but your CPU microcode is lacking support to successfully mitigate the vulnerability"
 			else
 				pvulnstatus $cve VULN "IBRS hardware + kernel support OR kernel with retpoline are needed to mitigate the vulnerability"
 			fi
@@ -1611,7 +1745,7 @@ check_variant3()
 				_debug "kpti_enabled: found 'kaiser' flag in /proc/cpuinfo"
 				kpti_enabled=1
 			elif [ -e /sys/kernel/debug/x86/pti_enabled ]; then
-				# RedHat Backport creates a dedicated file, see https://access.redhat.com/articles/3311301
+				# Red Hat Backport creates a dedicated file, see https://access.redhat.com/articles/3311301
 				kpti_enabled=$(cat /sys/kernel/debug/x86/pti_enabled 2>/dev/null)
 				_debug "kpti_enabled: file /sys/kernel/debug/x86/pti_enabled exists and says: $kpti_enabled"
 			fi
@@ -1706,7 +1840,7 @@ check_variant3()
 			elif [ "$xen_pv_domo" = 1 ]; then
 				pvulnstatus $cve OK "Xen Dom0s are safe and do not require PTI"
 			elif [ "$xen_pv_domu" = 1 ]; then
-				pvulnstatus $cve VULN "Xen PV DomUs are vulnerable and need to be run in HVM, PVHVM or PVH mode"
+				pvulnstatus $cve VULN "Xen PV DomUs are vulnerable and need to be run in HVM, PVHVM, PVH mode, or the Xen hypervisor must have the Xen's own PTI patch"
 			else
 				pvulnstatus $cve VULN "PTI is needed to mitigate the vulnerability"
 			fi
@@ -1759,12 +1893,6 @@ fi
 
 _info "A false sense of security is worse than no security at all, see --disclaimer"
 
-# this'll umount only if we mounted debugfs ourselves
-umount_debugfs
-
-# cleanup the temp decompressed config
-[ -n "$dumped_config" ] && [ -f "$dumped_config" ] && rm -f "$dumped_config"
-
 if [ "$opt_batch" = 1 ] && [ "$opt_batch_format" = "nrpe" ]; then
 	if [ ! -z "$nrpe_vuln" ]; then
 		echo "Vulnerable:$nrpe_vuln"
@@ -1775,6 +1903,12 @@ fi
 
 if [ "$opt_batch" = 1 ] && [ "$opt_batch_format" = "json" ]; then
 	_echo 0 "${json_output%?}]"
+fi
+
+if [ "$opt_batch" = 1 ] && [ "$opt_batch_format" = "prometheus" ]; then
+	echo "# TYPE specex_vuln_status untyped"
+	echo "# HELP specex_vuln_status Exposure of system to speculative execution vulnerabilities"
+	echo "$prometheus_output"
 fi
 
 # exit with the proper exit code
