@@ -1018,7 +1018,7 @@ Function Check-Prereqs
 
 switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
     'Microsoft Windows Server 2008 R2*'       { $hotfix = 'KB4056897'; $prereqs = @() }
-    'Microsoft Windows Server 2012 R2*'       { $hotfix = 'KB4056898'; $prereqs = @('KB2919355', 'KB2919442') }
+    'Microsoft Windows Server 2012 R2*'       { $hotfix = 'KB4056898'; $prereqs = @('KB2919355', 'KB3173424') }
     'Microsoft Windows Server 2016*'          { $hotfix = 'KB4056890'; $prereqs = @() }
     'Microsoft Windows Server, version 1709*' { $hotfix = 'KB4056892'; $prereqs = @() }
 }
@@ -1033,7 +1033,8 @@ If ($hotfix -eq $null) {
 
     $check = Get-WUInstall -KBArticleID $hotfix -ListOnly
     if ($check -eq $null) {
-        Write-Output "The Spectre/Meltdown hotfix $hotfix is not being offered to this system by the update server. Checking if there are prerequirements that may need to be installed first..."
+        Write-Output "The Spectre/Meltdown hotfix $hotfix is not being offered to this system by the update server."
+	Write-Output "Checking if there are prerequirements that may need to be installed first..."
 	$prereqcheck = Check-Prereqs -PrereqsArray $prereqs
 	if ($prereqcheck) {
 	    if ($prereqcheck -eq $true) {
