@@ -1055,6 +1055,7 @@ If ($hotfix -eq $null) {
 		            Else {
 		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot
 		            }
+                    Exit 0
 		        }
                 Else {
                     Exit 1
