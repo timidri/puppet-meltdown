@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.1
+
+**Improvements**
+
+* Made path to `spectre-meltdown-checker.ps1` script fully relative
+
 ## Release 0.9.0
 
 **Features**
