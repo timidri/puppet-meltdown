@@ -998,9 +998,10 @@ Function Check-Prereqs
                     $result = $true
 		        }
                 else {
-                    $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly $WUfallbackSwitch
-                    if (($checkprereq -eq $null) -and ($fallbacktowu)) {
-		            $WUfallbackSwitch = [switch]$WindowsUpdate
+                    $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly
+                    if (($checkprereq -eq $null) -and ($fallbacktowu -eq 'true')) {
+                            Write-Verbose 'Update not found on update server, falling back to Windows Update...'
+                            $fellbacktoWU = $true
                             $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly -WindowsUpdate
                     }
                     if ($checkprereq -eq $null) {
@@ -1017,7 +1018,7 @@ Function Check-Prereqs
     }
 }
 
-$WUfallbackSwitch = ''
+$fellbacktoWU = $false
 
 switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
     'Microsoft Windows Server 2008 Standard*'   { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
@@ -1040,9 +1041,10 @@ if ($hotfix -eq $null) {
     }
 
     $check = Get-WUInstall -KBArticleID $hotfix -ListOnly
-    if (($check -eq $null) -and ($fallbacktowu)) {
-        $WUfallbackSwitch = [switch]$WindowsUpdate
-        $check = Get-WUInstall -KBArticleID $hotfix -ListOnly $WUfallbackSwitch
+    if (($check -eq $null) -and ($fallbacktowu -eq 'true')) {
+        Write-Output 'Update not found on update server, falling back to Windows Update...'
+        $fellbacktoWU = $true
+        $check = Get-WUInstall -KBArticleID $hotfix -ListOnly -WindowsUpdate
     }
     if ($check -eq $null) {
         Write-Output "The Spectre/Meltdown hotfix $hotfix is not being offered to this system by the update server."
@@ -1066,10 +1068,18 @@ if ($hotfix -eq $null) {
 		        if ($force -eq 'true') {
                     Write-Output "Force parameter enabled, installing prerequired update..."
 		            if ($reboot -eq 'true') {
-		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot $WUfallbackSwitch
+                        if ($fellbacktoWU -eq 'true') {
+                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot -WindowsUpdate
+                        } Else {
+                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot
+                        }
 		            }
 		            else {
-		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot $WUfallbackSwitch
+                        if ($fellbacktoWU -eq 'true') {
+                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot -WindowsUpdate
+                        } Else {
+                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot
+                        }
 		            }
                     Exit 0
 		        }
@@ -1086,10 +1096,18 @@ if ($hotfix -eq $null) {
     if ($force -eq 'true') {
         Write-Output "Force parameter enabled, installing update..."
         if ($reboot -eq 'true') {
-            Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot $WUfallbackSwitch
+            if ($fellbacktoWU -eq 'true') {
+                Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot -WindowsUpdate
+            } Else {
+                Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
+            }
         }
         else {
-            Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot $WUfallbackSwitch
+            if ($fellbacktoWU -eq 'true') {
+                Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot -WindowsUpdate
+            } Else {
+                Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot
+            }
         }
     }
     else {
