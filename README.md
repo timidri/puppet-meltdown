@@ -96,10 +96,11 @@ This task updates the Linux kernel to the latest version, which contains the pat
 
 This task installs the correct Windows patch for Spectre & Meltdown for Windows Server 2008 R2, 2012 R2, 2016 and 2016 Server Core. The task offers 2 parameters:
 
+* **fallbacktowu**  : If true, updates can be retrieved from Windows Update directly if they are not provided by the WSUS server 
 * **force**  : if true, the patch installation is actually performed, otherwise it only outputs if the patch is being offered to this system from the update server
 * **reboot** : if true, reboots the machine after update, but only if *force* is also true
 
-If the patch is not being offered to the system from the update server, the task will notify you of this. If the reason for this is that a required registry entry is not present (which should already be set by your antivirus product), the task will notify you of this. You have the option of using the meltdown::force_offer_hotfix task to get this registry entry in place if needed.
+If the patch is not being offered to the system from the update server, the task will notify you of this. If the reason for this is that a required registry entry is not present (which should already be set by your antivirus product), the task will notify you of this. You have the option of using the meltdown::force_offer_hotfix task to get this registry entry in place if needed. If the reason for not offering the patch is because of certain prerequired patches not being installed, the task will also notify you of this. If the 'force' option is enabled, the needed prerequired patch will be installed first, after which you can retry to retrieve & install the Spectre/Meltdown patch.
 
 #### meltdown::force_offer_update
 
@@ -117,11 +118,13 @@ meltdown is tested on the following platforms:
   * Debian 8 32 bits
   * Ubuntu 14.04
 * Windows Server
+  * Windows Server 2008 SP2
   * Windows Server 2008 R2
-  * Windows Server 2102 R2
+  * Windows Server 2012
+  * Windows Server 2012 R2
   * Windows Server 2016
 
-meltdown works on all Puppet Enterprise versions specified in the compatibility information, but tasks only work starting with 2017.3.
+meltdown works on all Puppet Enterprise versions specified in the compatibility information, but tasks only work starting with 2017.3 and higher. You can use the tasks in this module with Puppet Bolt as well.
 
 ## Development
 
