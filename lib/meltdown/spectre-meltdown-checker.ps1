@@ -5,16 +5,21 @@ Function Add-SpectreVariants {
     $SpeculationControl = Get-SpeculationControlSettings
     
     switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
-        'Microsoft Windows Server 2008 R2*'       { $hotfix = 'KB4056897' }
-        'Microsoft Windows Server 2012 R2*'       { $hotfix = 'KB4056898' }
-        'Microsoft Windows Server 2016*'          { $hotfix = 'KB4056890' }
-        'Microsoft Windows Server, version 1709*' { $hotfix = 'KB4056892' }
+        'Microsoft Windows Server 2008 Standard*'   { $hotfix = 'KB4090450' }
+        'Microsoft Windows Server 2008 Enterprise*' { $hotfix = 'KB4090450' }
+        'Microsoft Windows Server 2008 Datacenter'  { $hotfix = 'KB4090450' }
+        'Microsoft Windows Server 2008 R2*'         { $hotfix = 'KB4056897' }
+        'Microsoft Windows Server 2012 Standard*'   { $hotfix = 'KB4088877' }
+        'Microsoft Windows Server 2012 Datacenter*' { $hotfix = 'KB4088877' }
+        'Microsoft Windows Server 2012 R2*'         { $hotfix = 'KB4056898' }
+        'Microsoft Windows Server 2016*'            { $hotfix = 'KB4056890' }
+        'Microsoft Windows Server, version 1709*'   { $hotfix = 'KB4056892' }
     }
 
     if ($hotfix) {
         $arrCVE.Add('CVE-2017-5715', @{
             "CVE"              = "2017-5715"
-            "description"      = "Spectre Variant 1"
+            "description"      = "Spectre Variant 2"
             "vulnerable"       = if ($SpeculationControl.BTIWindowsSupportEnabled) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.BTIWindowsSupportPresent
@@ -26,7 +31,7 @@ Function Add-SpectreVariants {
         })
         $arrCVE.Add('CVE-2017-5753', @{
             "CVE"              = "2017-5753"
-            "description"      = "Spectre Variant 2"
+            "description"      = "Spectre Variant 1"
             "vulnerable"       = if ([bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = [bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)
