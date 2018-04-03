@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.0
+
+**Features**
+
+* Added support for Windows 2008 and Windows 2012, based on new patches provided by Microsoft
+* Added 'FallbacktoWU' parameter for the meltdown::windows_update task (allows retrieval of patches from Windows Update)
+
 ## Release 0.8.6
 
 **Features**
