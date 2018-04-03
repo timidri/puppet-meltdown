@@ -11,5 +11,9 @@
       "description": "If true, the system is rebooted after the update is performed, but only if force is also true",
       "type": "Enum['true', 'false']"
     }
+    "fallbacktowu": {
+      "description": "If true, updates can be retrieved from Windows Update directly if they are not provided by the WSUS server",
+      "type": "Enum['true', 'false']"
+    }
   }
 }
