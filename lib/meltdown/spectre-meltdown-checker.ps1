@@ -17,6 +17,14 @@ Function Add-SpectreVariants {
     }
 
     if ($hotfix) {
+        $arrCVE.Add('CVE-2017-5753', @{
+            "CVE"              = "2017-5753"
+            "description"      = "Spectre Variant 1"
+            "vulnerable"       = if ([bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)) {$False} else {$True}
+            "info"             = @{
+                "hotfix_installed" = [bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)
+            }
+        })
         $arrCVE.Add('CVE-2017-5715', @{
             "CVE"              = "2017-5715"
             "description"      = "Spectre Variant 2"
@@ -27,14 +35,6 @@ Function Add-SpectreVariants {
                 "hardware_support" = $SpeculationControl.BTIHardwarePresent
                 "hotfix_disable_due_to_lack_of_hardware_support" = $SpeculationControl.BTIDisabledByNoHardwareSupport
                 "hotfix_disable_via_system_policy" = $SpeculationControl.BTIDisabledBySystemPolicy
-            }
-        })
-        $arrCVE.Add('CVE-2017-5753', @{
-            "CVE"              = "2017-5753"
-            "description"      = "Spectre Variant 1"
-            "vulnerable"       = if ([bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)) {$False} else {$True}
-            "info"             = @{
-                "hotfix_installed" = [bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)
             }
         })
         $arrCVE.Add('CVE-2017-5754', @{
