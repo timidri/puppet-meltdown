@@ -1025,8 +1025,8 @@ switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
     'Microsoft Windows Server 2008 Enterprise*' { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
     'Microsoft Windows Server 2008 Datacenter*' { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
     'Microsoft Windows Server 2008 R2*'         { $hotfix = 'KB4056897'; $prereqs = @('KB4073578') }
-    'Microsoft Windows Server 2012 Standard*'   { $hotfix = 'KB4088877'; $prereqs = @('KB4075213') }
-    'Microsoft Windows Server 2012 Datacenter*' { $hotfix = 'KB4088877'; $prereqs = @('KB4075213') }
+    'Microsoft Windows Server 2012 Standard*'   { $hotfix = 'KB4088877'; $prereqs = @() }
+    'Microsoft Windows Server 2012 Datacenter*' { $hotfix = 'KB4088877'; $prereqs = @() }
     'Microsoft Windows Server 2012 R2*'         { $hotfix = 'KB4056898'; $prereqs = @('KB2919355', 'KB3173424') }
     'Microsoft Windows Server 2016*'            { $hotfix = 'KB4056890'; $prereqs = @() }
     'Microsoft Windows Server, version 1709*'   { $hotfix = 'KB4056892'; $prereqs = @() }
