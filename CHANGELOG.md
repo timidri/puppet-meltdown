@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.8.6
+
+**Features**
+
+* Updated `spectre-meltdown-checker.sh` to v0.35
+
 ## Release 0.8.5
 
 **Bugfixes**
