@@ -1,7 +1,8 @@
 [CmdletBinding()]
 Param(
   [Parameter(Mandatory = $False)] [String] $force,
-  [Parameter(Mandatory = $False)] [String] $reboot
+  [Parameter(Mandatory = $False)] [String] $reboot,
+  [Parameter(Mandatory = $False)] [String] $fallbacktowu
 )
 
 Function Get-WUInstall
@@ -997,7 +998,11 @@ Function Check-Prereqs
                     $result = $true
 		        }
                 else {
-                    $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly
+                    $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly $WUfallbackSwitch
+                    if (($checkprereq -eq $null) -and ($fallbacktowu)) {
+		            $WUfallbackSwitch = [switch]$WindowsUpdate
+                            $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly -WindowsUpdate
+                    }
                     if ($checkprereq -eq $null) {
 	                    Write-Verbose "Prerequirement $_ not found and not offered by update server, if this is caused by this prereq having its own prereq, we will check that next..."
                     }
@@ -1012,22 +1017,33 @@ Function Check-Prereqs
     }
 }
 
+$WUfallbackSwitch = ''
+
 switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
-    'Microsoft Windows Server 2008 R2*'       { $hotfix = 'KB4056897'; $prereqs = @() }
-    'Microsoft Windows Server 2012 R2*'       { $hotfix = 'KB4056898'; $prereqs = @('KB2919355', 'KB3173424') }
-    'Microsoft Windows Server 2016*'          { $hotfix = 'KB4056890'; $prereqs = @() }
-    'Microsoft Windows Server, version 1709*' { $hotfix = 'KB4056892'; $prereqs = @() }
+    'Microsoft Windows Server 2008 Standard*'   { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
+    'Microsoft Windows Server 2008 Enterprise*' { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
+    'Microsoft Windows Server 2008 Datacenter*' { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
+    'Microsoft Windows Server 2008 R2*'         { $hotfix = 'KB4056897'; $prereqs = @('KB4073578') }
+    'Microsoft Windows Server 2012 Standard*'   { $hotfix = 'KB4056897'; $prereqs = @('KB4099468') }
+    'Microsoft Windows Server 2012 Datacenter*' { $hotfix = 'KB4056897'; $prereqs = @('KB4099468') }
+    'Microsoft Windows Server 2012 R2*'         { $hotfix = 'KB4056898'; $prereqs = @('KB2919355', 'KB3173424') }
+    'Microsoft Windows Server 2016*'            { $hotfix = 'KB4056890'; $prereqs = @() }
+    'Microsoft Windows Server, version 1709*'   { $hotfix = 'KB4056892'; $prereqs = @() }
 }
 
-If ($hotfix -eq $null) {
+if ($hotfix -eq $null) {
     Write-Output "No hotfix available for this operating system version!"
-} Else {
+} else {
     if (Get-Hotfix -Id $hotfix -ErrorAction 'silentlycontinue') {
         Write-Output "The Spectre/Meltdown hotfix is already installed on this system, nothing to do."
     Exit 0
     }
 
     $check = Get-WUInstall -KBArticleID $hotfix -ListOnly
+    if (($check -eq $null) -and ($fallbacktowu)) {
+        $WUfallbackSwitch = [switch]$WindowsUpdate
+        $check = Get-WUInstall -KBArticleID $hotfix -ListOnly $WUfallbackSwitch
+    }
     if ($check -eq $null) {
         Write-Output "The Spectre/Meltdown hotfix $hotfix is not being offered to this system by the update server."
 	    Write-Output "Checking if there are prerequirements that may need to be installed first..."
@@ -1047,17 +1063,17 @@ If ($hotfix -eq $null) {
 	        }
 	        else {
 	            Write-Output "The following prerequirement needs to be installed first: $prereqcheck"
-		        If ($force -eq 'true') {
+		        if ($force -eq 'true') {
                     Write-Output "Force parameter enabled, installing prerequired update..."
-		            If ($reboot -eq 'true') {
-		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot
+		            if ($reboot -eq 'true') {
+		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot $WUfallbackSwitch
 		            }
-		            Else {
-		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot
+		            else {
+		                Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot $WUfallbackSwitch
 		            }
                     Exit 0
 		        }
-                Else {
+                else {
                     Exit 1
                 }
 	        }
@@ -1067,16 +1083,16 @@ If ($hotfix -eq $null) {
 	        Exit 1
 	    }        
     }
-    If ($force -eq 'true') {
+    if ($force -eq 'true') {
         Write-Output "Force parameter enabled, installing update..."
-        If ($reboot -eq 'true') {
-            Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
+        if ($reboot -eq 'true') {
+            Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot $WUfallbackSwitch
         }
-        Else {
-            Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot
+        else {
+            Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot $WUfallbackSwitch
         }
     }
-    Else {
+    else {
         Write-Output "The following Spectre/Meltdown hotfix is available for this system: $hotfix"
     }
 }
