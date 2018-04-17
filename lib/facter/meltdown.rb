@@ -5,11 +5,11 @@ def convert_structure(json_array)
   json_array.each do |item|
     key = item['CVE']
     value = {
-      CVE:          key.gsub(%r{CVE-}, ''),
-      description:  item['NAME'],
-      vulnerable:   item['VULNERABLE'],
-      info: {
-        hardware:   item['INFOS'],
+      'CVE'         => key.gsub(%r{CVE-}, ''),
+      'description' => item['NAME'],
+      'vulnerable'  => item['VULNERABLE'],
+      'info'        => {
+        'hardware' => item['INFOS'],
       },
     }
     output[key] = value
