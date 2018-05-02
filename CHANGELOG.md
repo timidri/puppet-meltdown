@@ -7,6 +7,7 @@ All notable changes to this project will be documented in this file.
 **Features**
 
 * Updated `spectre-meltdown-checker.sh` to v0.37+
+* Replaced symbol keys in Linux fact value by strings
 
 ## Release 0.9.1
 
