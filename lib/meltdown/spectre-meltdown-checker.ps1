@@ -1,8 +1,7 @@
 Function Add-SpectreVariants {
     #This function adds CVE's for Spectre variants 1,2 and 3 (Meltdown)
     Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\meltdown\SpeculationControl.psd1
-    function global:Write-Host() {}
-    $SpeculationControl = Get-SpeculationControlSettings
+    $SpeculationControl = Get-SpeculationControlSettings -Quiet
 
     if ([Environment]::OSVersion.Version.Major -ge 6) {
         $arrCVE.Add('CVE-2017-5753', @{
