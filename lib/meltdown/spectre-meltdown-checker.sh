@@ -64,7 +64,7 @@ show_usage()
 		--batch nrpe		produce machine readable output formatted for NRPE
 		--batch prometheus      produce output for consumption by prometheus-node-exporter
 
-		--variant [1,2,3]	specify which variant you'd like to check, by default all variants are checked,
+		--variant [1,2,3,3a,4]	specify which variant you'd like to check, by default all variants are checked,
 					can be specified multiple times (e.g. --variant 2 --variant 3)
 		--hw-only		only check for CPU information, don't check for any variant
 		--no-hw			skip CPU information and checks, if you're inspecting a kernel not to be run on this host
@@ -124,6 +124,8 @@ opt_verbose=1
 opt_variant1=0
 opt_variant2=0
 opt_variant3=0
+opt_variant3a=0
+opt_variant4=0
 opt_allvariants=1
 opt_no_sysfs=0
 opt_sysfs_only=0
@@ -243,18 +245,22 @@ is_cpu_vulnerable_cached=0
 _is_cpu_vulnerable_cached()
 {
 	# shellcheck disable=SC2086
-	[ "$1" = 1 ] && return $variant1
+	[ "$1" = 1  ] && return $variant1
 	# shellcheck disable=SC2086
-	[ "$1" = 2 ] && return $variant2
+	[ "$1" = 2  ] && return $variant2
 	# shellcheck disable=SC2086
-	[ "$1" = 3 ] && return $variant3
+	[ "$1" = 3  ] && return $variant3
+	# shellcheck disable=SC2086
+	[ "$1" = 3a ] && return $variant3a
+	# shellcheck disable=SC2086
+	[ "$1" = 4  ] && return $variant4
 	echo "$0: error: invalid variant '$1' passed to is_cpu_vulnerable()" >&2
 	exit 255
 }
 
 is_cpu_vulnerable()
 {
-	# param: 1, 2 or 3 (variant)
+	# param: 1, 2, 3, 3a or 4 (variant)
 	# returns 0 if vulnerable, 1 if not vulnerable
 	# (note that in shell, a return of 0 is success)
 	# by default, everything is vulnerable, we work in a "whitelist" logic here.
@@ -267,11 +273,15 @@ is_cpu_vulnerable()
 	variant1=''
 	variant2=''
 	variant3=''
+	variant3a=''
+	variant4=''
 
 	if is_cpu_specex_free; then
 		variant1=immune
 		variant2=immune
 		variant3=immune
+		variant3a=immune
+		variant4=immune
 	elif is_intel; then
 		# Intel
 		# https://github.com/crozone/SpectrePoC/issues/1 ^F E5200 => spectre 2 not vulnerable
@@ -289,12 +299,30 @@ is_cpu_vulnerable()
 			variant3=immune
 			_debug "is_cpu_vulnerable: RDCL_NO is set so not vuln to meltdown"
 		fi
+		if [ "$capabilities_ssb_no" = 1 ]; then
+			# capability bit for future Intel processor that will explicitly state
+			# that they're not vulnerable to Variant 4
+			# this var is set in check_cpu()
+			variant4=immune
+			_debug "is_cpu_vulnerable: SSB_NO is set so not vuln to variant4"
+		fi
+		if is_cpu_ssb_free; then
+			[ -z "$variant4" ] && variant4=immune
+			_debug "is_cpu_vulnerable: cpu not affected by speculative store bypass so not vuln to variant4"
+		fi
 	elif is_amd; then
 		# AMD revised their statement about variant2 => vulnerable
 		# https://www.amd.com/en/corporate/speculative-execution
 		variant1=vuln
 		variant2=vuln
-		[ -z "$variant3" ] && variant3=immune
+		[ -z "$variant3"  ] && variant3=immune
+		# https://www.amd.com/en/corporate/security-updates
+		# "We have not identified any AMD x86 products susceptible to the Variant 3a vulnerability in our analysis to-date."
+		[ -z "$variant3a" ] && variant3a=immune
+		if is_cpu_ssb_free; then
+			[ -z "$variant4" ] && variant4=immune
+			_debug "is_cpu_vulnerable: cpu not affected by speculative store bypass so not vuln to variant4"
+		fi
 	elif [ "$cpu_vendor" = ARM ]; then
 		# ARM
 		# reference: https://developer.arm.com/support/security-update
@@ -343,16 +371,38 @@ is_cpu_vulnerable()
 					_debug "checking cpu$i: this arm non vulnerable to meltdown"
 					[ -z "$variant3" ] && variant3=immune
 				fi
+
+				# for variant3a, only A15/A57/A72 are vulnerable
+				if [ "$cpuarch" = 8 ] && echo "$cpupart" | grep -Eq '^0x(c0f|d07|d0a)$'; then
+					_debug "checking cpu$i: arm A15-A57-A72 vulnerable to variant3a"
+					variant3a=vuln
+				else
+					_debug "checking cpu$i: this arm non vulnerable to variant3a"
+					[ -z "$variant3a" ] && variant3a=immune
+				fi
+
+				# for variant4, only A57-72-73-75 are vulnerable
+				if [ "$cpuarch" = 8 ] && echo "$cpupart" | grep -Eq '^0xd0[789a]$'; then
+					_debug "checking cpu$i: arm A57-A72-A73-A75 vulnerable to variant4"
+					variant4=vuln
+				else
+					_debug "checking cpu$i: this arm non vulnerable to variant4"
+					[ -z "$variant4" ] && variant4=immune
+				fi
 			fi
-			_debug "is_cpu_vulnerable: for cpu$i and so far, we have <$variant1> <$variant2> <$variant3>"
+			_debug "is_cpu_vulnerable: for cpu$i and so far, we have <$variant1> <$variant2> <$variant3> <$variant3a> <$variant4>"
 		done
 	fi
-	_debug "is_cpu_vulnerable: temp results are <$variant1> <$variant2> <$variant3>"
+	# from the information we have for now, it seems that CPUs that are vulnerable to variant1 are also vulnerable to variant4
+	[ -z "$variant4" ] && variant4=$variant1
+	_debug "is_cpu_vulnerable: temp results are <$variant1> <$variant2> <$variant3> <$variant3a> <$variant4>"
 	# if at least one of the cpu is vulnerable, then the system is vulnerable
-	[ "$variant1" = "immune" ] && variant1=1 || variant1=0
-	[ "$variant2" = "immune" ] && variant2=1 || variant2=0
-	[ "$variant3" = "immune" ] && variant3=1 || variant3=0
-	_debug "is_cpu_vulnerable: final results are <$variant1> <$variant2> <$variant3>"
+	[ "$variant1"  = "immune" ] && variant1=1  || variant1=0
+	[ "$variant2"  = "immune" ] && variant2=1  || variant2=0
+	[ "$variant3"  = "immune" ] && variant3=1  || variant3=0
+	[ "$variant3a" = "immune" ] && variant3a=1 || variant3a=0
+	[ "$variant4"  = "immune" ] && variant4=1  || variant4=0
+	_debug "is_cpu_vulnerable: final results are <$variant1> <$variant2> <$variant3> <$variant3a> <$variant4>"
 	is_cpu_vulnerable_cached=1
 	_is_cpu_vulnerable_cached "$1"
 	return $?
@@ -386,6 +436,51 @@ is_cpu_specex_free()
 			return 0
 		fi
 	fi
+	[ "$cpu_family" = 4 ] && return 0
+	return 1
+}
+
+is_cpu_ssb_free()
+{
+	# return true (0) if the CPU isn't affected by speculative store bypass, false (1) if it does.
+	# if it's not in the list we know, return false (1).
+	# source1: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/kernel/cpu/common.c#n945
+	# source2: https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/tree/arch/x86/kernel/cpu/common.c
+	# Only list CPUs that speculate but are immune, to avoid duplication of cpus listed in is_cpu_specex_free()
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_ATOM_SILVERMONT1	},
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_ATOM_AIRMONT		},
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_ATOM_SILVERMONT2	},
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_ATOM_MERRIFIELD	},
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_CORE_YONAH		},
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_XEON_PHI_KNL		},
+	#{ X86_VENDOR_INTEL,	6,	INTEL_FAM6_XEON_PHI_KNM		},
+	#{ X86_VENDOR_AMD,	0x12,					},
+	#{ X86_VENDOR_AMD,	0x11,					},
+	#{ X86_VENDOR_AMD,	0x10,					},
+	#{ X86_VENDOR_AMD,	0xf,					},
+	parse_cpu_details
+	if is_intel; then
+		if [ "$cpu_family" = 6 ]; then
+			if [ "$cpu_model" = "$INTEL_FAM6_ATOM_AIRMONT"          ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_SILVERMONT1" ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_SILVERMONT2" ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_ATOM_MERRIFIELD"  ]; then
+				return 0
+			elif [ "$cpu_model" = "$INTEL_FAM6_CORE_YONAH"          ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_XEON_PHI_KNL"     ] || \
+				[ "$cpu_model" = "$INTEL_FAM6_XEON_PHI_KNM"     ]; then
+				return 0
+			fi
+		fi
+	fi
+	if is_amd; then
+		if [ "$cpu_family" = "18" ] || \
+			[ "$cpu_family" = "17" ] || \
+			[ "$cpu_family" = "16" ] || \
+			[ "$cpu_family" = "15" ]; then 
+			return 0
+		fi
+	fi			
 	[ "$cpu_family" = 4 ] && return 0
 	return 1
 }
@@ -492,15 +587,17 @@ while [ -n "$1" ]; do
 		shift
 	elif [ "$1" = "--variant" ]; then
 		if [ -z "$2" ]; then
-			echo "$0: error: option --variant expects a parameter (1, 2 or 3)" >&2
+			echo "$0: error: option --variant expects a parameter (1, 2, 3, 3a or 4)" >&2
 			exit 255
 		fi
 		case "$2" in
-			1) opt_variant1=1; opt_allvariants=0;;
-			2) opt_variant2=1; opt_allvariants=0;;
-			3) opt_variant3=1; opt_allvariants=0;;
+			1)  opt_variant1=1;  opt_allvariants=0;;
+			2)  opt_variant2=1;  opt_allvariants=0;;
+			3)  opt_variant3=1;  opt_allvariants=0;;
+			3a) opt_variant3a=1; opt_allvariants=0;;
+			4)  opt_variant4=1;  opt_allvariants=0;;
 			*)
-				echo "$0: error: invalid parameter '$2' for --variant, expected either 1, 2 or 3" >&2;
+				echo "$0: error: invalid parameter '$2' for --variant, expected either 1, 2, 3, 3a or 4" >&2;
 				exit 255
 				;;
 		esac
@@ -567,6 +664,8 @@ pvulnstatus()
 			CVE-2017-5753) aka="SPECTRE VARIANT 1";;
 			CVE-2017-5715) aka="SPECTRE VARIANT 2";;
 			CVE-2017-5754) aka="MELTDOWN";;
+			CVE-2018-3640) aka="VARIANT 3A";;
+			CVE-2018-3639) aka="VARIANT 4";;
 		esac
 
 		case "$opt_batch_format" in
@@ -732,8 +831,12 @@ mount_debugfs()
 load_msr()
 {
 	if [ "$os" = Linux ]; then
-		modprobe msr 2>/dev/null && insmod_msr=1
-		_debug "attempted to load module msr, insmod_msr=$insmod_msr"
+		if ! grep -e msr /proc/modules 2>/dev/null; then
+			modprobe msr 2>/dev/null && insmod_msr=1
+			_debug "attempted to load module msr, insmod_msr=$insmod_msr"
+		else
+			_debug "msr module already loaded"
+		fi	
 	else
 		if ! kldstat -q -m cpuctl; then
 			kldload cpuctl 2>/dev/null && kldload_cpuctl=1
@@ -747,8 +850,12 @@ load_msr()
 load_cpuid()
 {
 	if [ "$os" = Linux ]; then
-		modprobe cpuid 2>/dev/null && insmod_cpuid=1
-		_debug "attempted to load module cpuid, insmod_cpuid=$insmod_cpuid"
+		if ! grep -e cpuid /proc/modules 2>/dev/null; then
+			modprobe cpuid 2>/dev/null && insmod_cpuid=1
+			_debug "attempted to load module cpuid, insmod_cpuid=$insmod_cpuid"
+		else
+			_debug "cpuid module already loaded"
+		fi	
 	else
 		if ! kldstat -q -m cpuctl; then
 			kldload cpuctl 2>/dev/null && kldload_cpuctl=1
@@ -880,6 +987,7 @@ parse_cpu_details()
 	# get raw cpuid, it's always useful (referenced in the Intel doc for firmware updates for example)
 	if read_cpuid 0x1 $EAX 0 0xFFFFFFFF; then
 		cpuid="$read_cpuid_value"
+		#cpuid_hex=$(printf "%X" "$cpuid")
 	fi
 
 	# under BSD, linprocfs often doesn't export ucode information, so fetch it ourselves the good old way
@@ -900,7 +1008,7 @@ parse_cpu_details()
 	fi
 
 	echo "$cpu_ucode" | grep -q ^0x && cpu_ucode_decimal=$(( cpu_ucode ))
-	ucode_found="model $cpu_model stepping $cpu_stepping ucode $cpu_ucode cpuid "$(printf "0x%x" "$cpuid")
+	ucode_found=$(printf "model 0x%x family 0x%x stepping 0x%x ucode 0x%x cpuid 0x%x" "$cpu_model" "$cpu_family" "$cpu_stepping" "$cpu_ucode" "$cpuid")
 
 	# also define those that we will need in other funcs
 	# taken from ttps://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/arch/x86/include/asm/intel-family.h
@@ -1403,7 +1511,6 @@ read_msr()
 	return 0
 }
 
-
 check_cpu()
 {
 	_info "\033[1;34mHardware check\033[0m"
@@ -1619,6 +1726,46 @@ check_cpu()
 		fi
 	fi
 
+	# variant 4
+	if is_intel; then
+		_info     "  * Speculative Store Bypass Disable (SSBD)"
+		_info_nol "    * CPU indicates SSBD capability: "
+		read_cpuid 0x7 $EDX 31 1 1; ret=$?
+		if [ $ret -eq 0 ]; then
+			cpuid_ssbd='Intel SSBD'
+		fi
+	elif is_amd; then
+		_info     "  * Speculative Store Bypass Disable (SSBD)"
+		_info_nol "    * CPU indicates SSBD capability: "
+		read_cpuid 0x80000008 $EBX 24 1 1; ret24=$?
+		read_cpuid 0x80000008 $EBX 25 1 1; ret25=$?
+		if [ $ret24 -eq 0 ]; then
+			cpuid_ssbd='AMD SSBD in SPEC_CTRL'
+			#cpuid_ssbd_spec_ctrl=1
+		elif [ $ret25 -eq 0 ]; then
+			cpuid_ssbd='AMD SSBD in VIRT_SPEC_CTRL'
+			#cpuid_ssbd_virt_spec_ctrl=1
+		elif [ "$cpu_family" -ge 21 ] && [ "$cpu_family" -le 23 ]; then
+			cpuid_ssbd='AMD non-architectural MSR'
+		fi
+	fi
+
+	if [ -n "$cpuid_ssbd" ]; then
+		pstatus green YES "$cpuid_ssbd"
+	elif [ "$ret24" = 2 ] && [ "$ret25" = 2 ]; then
+		pstatus yellow UNKNOWN "is cpuid kernel module available?"
+	else
+		pstatus yellow NO
+	fi
+
+	if is_amd; then
+		# similar to SSB_NO for intel
+		read_cpuid 0x80000008 $EBX 26 1 1; ret=$?
+		if [ $ret -eq 0 ]; then
+			amd_ssb_no=1
+		fi
+	fi
+
 	if is_intel; then
 		_info     "  * Enhanced IBRS (IBRS_ALL)"
 		_info_nol "    * CPU indicates ARCH_CAPABILITIES MSR availability: "
@@ -1672,11 +1819,13 @@ check_cpu()
 			capabilities=$val_cap_msr
 			capabilities_rdcl_no=0
 			capabilities_ibrs_all=0
+			capabilities_ssb_no=0
 			if [ $val -eq 0 ]; then
 				_debug "capabilities MSR lower byte is $capabilities (decimal)"
-				[ $(( capabilities & 1 )) -eq 1 ] && capabilities_rdcl_no=1
-				[ $(( capabilities & 2 )) -eq 2 ] && capabilities_ibrs_all=1
-				_debug "capabilities says rdcl_no=$capabilities_rdcl_no ibrs_all=$capabilities_ibrs_all"
+				[ $(( capabilities &  1 )) -eq 1  ] && capabilities_rdcl_no=1
+				[ $(( capabilities &  2 )) -eq 2  ] && capabilities_ibrs_all=1
+				[ $(( capabilities & 16 )) -eq 16 ] && capabilities_ssb_no=1
+				_debug "capabilities says rdcl_no=$capabilities_rdcl_no ibrs_all=$capabilities_ibrs_all ssb_no=$capabilities_ssb_no"
 				if [ "$capabilities_ibrs_all" = 1 ]; then
 					if [ $cpu_mismatch -eq 0 ]; then
 						pstatus green YES
@@ -1703,6 +1852,15 @@ check_cpu()
 		fi
 	fi
 
+	_info_nol "  * CPU explicitly indicates not being vulnerable to Variant 4 (SSB_NO): "
+	if [ "$capabilities_ssb_no" = -1 ]; then
+		pstatus yellow UNKNOWN
+	elif [ "$capabilities_ssb_no" = 1 ] || [ "$amd_ssb_no" = 1 ]; then
+		pstatus green YES
+	else
+		pstatus yellow NO
+	fi
+
 	_info_nol "  * CPU microcode is known to cause stability problems: "
 	if is_ucode_blacklisted; then
 		pstatus red YES "$ucode_found"
@@ -1719,8 +1877,8 @@ check_cpu()
 
 check_cpu_vulnerabilities()
 {
-	_info     "* CPU vulnerability to the three speculative execution attack variants"
-	for v in 1 2 3; do
+	_info     "* CPU vulnerability to the speculative execution attack variants"
+	for v in 1 2 3 3a 4; do
 		_info_nol "  * Vulnerable to Variant $v: "
 		if is_cpu_vulnerable $v; then
 			pstatus yellow YES
@@ -2029,7 +2187,7 @@ check_variant2_linux()
 			fi
 			if [ -e "/sys/devices/system/cpu/vulnerabilities/spectre_v2" ]; then
 				# when IBPB is enabled on 4.15+, we can see it in sysfs
-				if grep -q ', IBPB' "/sys/devices/system/cpu/vulnerabilities/spectre_v2"; then
+				if grep -q 'IBPB' "/sys/devices/system/cpu/vulnerabilities/spectre_v2"; then
 					_debug "ibpb: found enabled in sysfs"
 					[ -z "$ibpb_supported" ] && ibpb_supported='IBPB found enabled in sysfs'
 					[ -z "$ibpb_enabled"   ] && ibpb_enabled=1
@@ -2041,7 +2199,7 @@ check_variant2_linux()
 					ibrs_fw_enabled=1
 				fi
 				# when IBRS is enabled on 4.15+, we can see it in sysfs
-				if grep -q 'Indirect Branch Restricted Speculation' "/sys/devices/system/cpu/vulnerabilities/spectre_v2"; then
+				if grep -q -e 'IBRS' -e 'Indirect Branch Restricted Speculation' "/sys/devices/system/cpu/vulnerabilities/spectre_v2"; then
 					_debug "ibrs: found IBRS in sysfs"
 					[ -z "$ibrs_supported" ] && ibrs_supported='found IBRS in sysfs'
 					[ -z "$ibrs_enabled"   ] && ibrs_enabled=3
@@ -2129,7 +2287,10 @@ check_variant2_linux()
 					1)	if [ "$ibrs_fw_enabled" = 1 ]; then pstatus green YES "for kernel space and firmware code"; else pstatus green YES "for kernel space"; fi;;
 					2)	if [ "$ibrs_fw_enabled" = 1 ]; then pstatus green YES "for kernel, user space, and firmware code" ; else pstatus green YES "for both kernel and user space"; fi;;
 					3)	if [ "$ibrs_fw_enabled" = 1 ]; then pstatus green YES "for kernel and firmware code"; else pstatus green YES; fi;;
-					*)	pstatus yellow UNKNOWN;;
+					*)	if [ "$cpuid_ibrs" != 'SPEC_CTRL' ] && [ "$cpuid_ibrs" != 'IBRS_SUPPORT' ] && [ "$cpuid_spec_ctrl" != -1 ]; 
+							then pstatus yellow NO; _debug "ibrs: known cpu not supporting SPEC-CTRL or IBRS"; 
+						else 
+							pstatus yellow UNKNOWN; fi;;
 				esac
 			fi
 		else
@@ -2806,6 +2967,102 @@ check_variant3_bsd()
 	fi
 }
 
+check_variant3a()
+{
+	_info "\033[1;34mCVE-2018-3640 [rogue system register read] aka 'Variant 3a'\033[0m"
+
+	status=UNK
+	sys_interface_available=0
+	msg=''
+
+	_info_nol "* CPU microcode mitigates the vulnerability: "
+	if [ -n "$cpuid_ssbd" ]; then
+		# microcodes that ship with SSBD are known to also fix variant3a
+		# there is no specific cpuid bit as far as we know
+		pstatus green YES
+	else
+		pstatus yellow NO
+	fi
+
+	cve='CVE-2018-3640'
+	if ! is_cpu_vulnerable 3a; then
+		# override status & msg in case CPU is not vulnerable after all
+		pvulnstatus $cve OK "your CPU vendor reported your CPU model as not vulnerable"
+	elif [ -n "$cpuid_ssbd" ]; then
+		pvulnstatus $cve OK "your CPU microcode mitigates the vulnerability"
+	else
+		pvulnstatus $cve VULN "an up-to-date CPU microcode is needed to mitigate this vulnerability"
+		explain "The microcode of your CPU needs to be upgraded to mitigate this vulnerability. This is usually done at boot time by your kernel (the upgrade is not persistent across reboots which is why it's done at each boot). If you're using a distro, make sure you are up to date, as microcode updates are usually shipped alongside with the distro kernel. Availability of a microcode update for you CPU model depends on your CPU vendor. You can usually find out online if a microcode update is available for your CPU by searching for your CPUID (indicated in the Hardware Check section). The microcode update is enough, there is no additional OS, kernel or software change needed."
+	fi
+}
+
+check_variant4()
+{
+	_info "\033[1;34mCVE-2018-3639 [speculative store bypass] aka 'Variant 4'\033[0m"
+
+	status=UNK
+	sys_interface_available=0
+	msg=''
+	if sys_interface_check "/sys/devices/system/cpu/vulnerabilities/spec_store_bypass"; then
+		# this kernel has the /sys interface, trust it over everything
+		sys_interface_available=1
+	fi
+	if [ "$opt_sysfs_only" != 1 ]; then
+		_info_nol "* Kernel supports speculation store bypass: "
+		if [ "$opt_live" = 1 ]; then
+			if grep -Eq 'Speculation.?Store.?Bypass:' /proc/self/status 2>/dev/null; then
+				kernel_ssb='found in /proc/self/status'
+				_debug "found Speculation.Store.Bypass: in /proc/self/status"
+			fi
+		fi
+		if [ -z "$kernel_ssb" ] && [ -n "$kernel" ]; then
+			kernel_ssb=$("${opt_arch_prefix}strings" "$kernel" | grep spec_store_bypass | head -n1);
+			[ -n "$kernel_ssb" ] && _debug "found $kernel_ssb in kernel"
+		fi
+		if [ -z "$kernel_ssb" ] && [ -n "$opt_map" ]; then
+			kernel_ssb=$(grep spec_store_bypass "$opt_map" | head -n1)
+			[ -n "$kernel_ssb" ] && _debug "found $kernel_ssb in System.map"
+		fi
+
+		if [ -n "$kernel_ssb" ]; then
+			pstatus green YES "$kernel_ssb"
+		else
+			pstatus yellow NO
+		fi
+
+	elif [ "$sys_interface_available" = 0 ]; then
+		# we have no sysfs but were asked to use it only!
+		msg="/sys vulnerability interface use forced, but it's not available!"
+		status=UNK
+	fi
+
+	cve='CVE-2018-3639'
+	if ! is_cpu_vulnerable 4; then
+		# override status & msg in case CPU is not vulnerable after all
+		pvulnstatus $cve OK "your CPU vendor reported your CPU model as not vulnerable"
+	elif [ -z "$msg" ] || [ "$msg" = "Vulnerable" ]; then
+		# if msg is empty, sysfs check didn't fill it, rely on our own test
+		if [ -n "$cpuid_ssbd" ]; then
+			if [ -n "$kernel_ssb" ]; then
+				pvulnstatus $cve OK "your system provides the necessary tools for software mitigation"
+			else
+				pvulnstatus $cve VULN "your kernel needs to be updated"
+				explain "You have a recent-enough CPU microcode but your kernel is too old to use the new features exported by your CPU's microcode. If you're using a distro kernel, upgrade your distro to get the latest kernel available. Otherwise, recompile the kernel from recent-enough sources."
+			fi
+		else
+			if [ -n "$kernel_ssb" ]; then
+				pvulnstatus $cve VULN "Your CPU doesn't support SSBD"
+				explain "Your kernel is recent enough to use the CPU microcode features for mitigation, but your CPU microcode doesn't actually provide the necessary features for the kernel to use. The microcode of your CPU hence needs to be upgraded. This is usually done at boot time by your kernel (the upgrade is not persistent across reboots which is why it's done at each boot). If you're using a distro, make sure you are up to date, as microcode updates are usually shipped alongside with the distro kernel. Availability of a microcode update for you CPU model depends on your CPU vendor. You can usually find out online if a microcode update is available for your CPU by searching for your CPUID (indicated in the Hardware Check section)."
+			else
+				pvulnstatus $cve VULN "Neither your CPU nor your kernel support SSBD"
+				explain "Both your CPU microcode and your kernel are lacking support for mitigation. If you're using a distro kernel, upgrade your distro to get the latest kernel available. Otherwise, recompile the kernel from recent-enough sources. The microcode of your CPU also needs to be upgraded. This is usually done at boot time by your kernel (the upgrade is not persistent across reboots which is why it's done at each boot). If you're using a distro, make sure you are up to date, as microcode updates are usually shipped alongside with the distro kernel. Availability of a microcode update for you CPU model depends on your CPU vendor. You can usually find out online if a microcode update is available for your CPU by searching for your CPUID (indicated in the Hardware Check section)."
+			fi
+		fi
+	else
+		pvulnstatus $cve "$status" "$msg"
+	fi
+}
+
 if [ "$opt_no_hw" = 0 ] && [ -z "$opt_arch_prefix" ]; then
 	check_cpu
 	check_cpu_vulnerabilities
@@ -2823,6 +3080,14 @@ if [ "$opt_variant2" = 1 ] || [ "$opt_allvariants" = 1 ]; then
 fi
 if [ "$opt_variant3" = 1 ] || [ "$opt_allvariants" = 1 ]; then
 	check_variant3
+	_info
+fi
+if [ "$opt_variant3a" = 1 ] || [ "$opt_allvariants" = 1 ]; then
+	check_variant3a
+	_info
+fi
+if [ "$opt_variant4" = 1 ] || [ "$opt_allvariants" = 1 ]; then
+	check_variant4
 	_info
 fi
 
