@@ -988,65 +988,98 @@ Function Check-Prereqs
 {
     Param($PrereqsArray)
     
-    if ($PrereqsArray) {
+    if ($PrereqsArray.Count -gt 0) {
         Write-Verbose "The Spectre/Meltdown hotfix for this OS has prerequirements, checking if they are installed..."
         $result = $false
         $PrereqsArray | foreach {
             if ($result -eq $false) {
-                if (Get-Hotfix -Id $_ -ErrorAction 'silentlycontinue') {
-                    Write-Verbose "Prerequirement $_ found on the system."
+                $UpdateToCheck = Get-UpdateObject -UpdateID $_
+                if ($UpdateToCheck.IsInstalled -eq $True) {
+                    Write-Verbose "Prerequirement $($UpdateToCheck.KB) found on the system."
                     $result = $true
 		        }
                 else {
-                    $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly
-                    if (($checkprereq -eq $null) -and ($fallbacktowu -eq 'true')) {
-                            Write-Verbose 'Update not found on update server, falling back to Windows Update...'
+                    if (($UpdateToCheck -eq $null) -and ($fallbacktowu -eq 'true')) {
+                            Write-Verbose "Prerequirement $($UpdateToCheck.KB) not found on update server, falling back to Windows Update..."
                             $fellbacktoWU = $true
-                            $checkprereq = Get-WUInstall -KBArticleID $_ -ListOnly -WindowsUpdate
+                            $UpdateToCheck = Get-UpdateObject -UpdateID $_ -WindowsUpdate
                     }
-                    if ($checkprereq -eq $null) {
-	                    Write-Verbose "Prerequirement $_ not found and not offered by update server, if this is caused by this prereq having its own prereq, we will check that next..."
+                    if ($UpdateToCheck -eq $null) {
+	                    Write-Verbose "Prerequirement $($UpdateToCheck.KB) not found and not offered by update server, if this is caused by this prereq having its own prereq, we will check that next..."
                     }
                     else {
-	                    Write-Verbose "Prerequirement $_ not found but offered by update server, this update will be installed if the Force parameter is set"
-                        $result = $_
+	                    Write-Verbose "Prerequirement $($UpdateToCheck.KB) not found but offered by update server, this update will be installed if the Force parameter is set"
+                        $result = $UpdateToCheck
                     }
                 }
             }
     	}
 	    Return $result
     }
+    else {
+        Return $true
+    }
+}
+
+Function Get-UpdateObject
+{
+    Param(
+    [string]$UpdateID,
+    [Switch]$WindowsUpdate
+    )
+
+    if ($WindowsUpdate) {
+        $updatelist = Get-WUInstall -ListOnly -WindowsUpdate
+    } Else {
+        $updatelist = Get-WUInstall -ListOnly
+    }
+    $directUpdate     = $updatelist | ? { $_.Identity.UpdateID -eq $UpdateID }
+    $supersededUpdate = $updatelist | ? { $_.SupersededUpdateIDs -Contains $UpdateID } | Select-Object -First 1
+
+    if ($directUpdate) {
+        Return $directUpdate
+    } elseif ($supersededUpdate) {
+        Return $supersededUpdate
+    } else {
+        Return $null
+    }
 }
 
 $fellbacktoWU = $false
 
-switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
-    'Microsoft Windows Server 2008 Standard*'   { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
-    'Microsoft Windows Server 2008 Enterprise*' { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
-    'Microsoft Windows Server 2008 Datacenter*' { $hotfix = 'KB4090450'; $prereqs = @('KB4019276', 'KB4056564') }
-    'Microsoft Windows Server 2008 R2*'         { $hotfix = 'KB4056897'; $prereqs = @('KB4073578') }
-    'Microsoft Windows Server 2012 Standard*'   { $hotfix = 'KB4088877'; $prereqs = @() }
-    'Microsoft Windows Server 2012 Datacenter*' { $hotfix = 'KB4088877'; $prereqs = @() }
-    'Microsoft Windows Server 2012 R2*'         { $hotfix = 'KB4056898'; $prereqs = @('KB2919355', 'KB3173424') }
-    'Microsoft Windows Server 2016*'            { $hotfix = 'KB4056890'; $prereqs = @() }
-    'Microsoft Windows Server, version 1709*'   { $hotfix = 'KB4056892'; $prereqs = @() }
+switch -Wildcard ((Get-CimInstance -ClassName Win32_OperatingSystem).Caption) {
+    'Microsoft Windows Server 2008 Standard*'   { $updateID = 'b1573b7f-383c-4346-8b9a-8ce68622d69d'; $prereqs = @('0193d5f4-f0d6-4e44-af23-2117db98a87a', 'f3f5a314-90ab-4fa4-b98f-060298c5381e') }
+    'Microsoft Windows Server 2008 Enterprise*' { $updateID = 'b1573b7f-383c-4346-8b9a-8ce68622d69d'; $prereqs = @('0193d5f4-f0d6-4e44-af23-2117db98a87a', 'f3f5a314-90ab-4fa4-b98f-060298c5381e') }
+    'Microsoft Windows Server 2008 Datacenter*' { $updateID = 'b1573b7f-383c-4346-8b9a-8ce68622d69d'; $prereqs = @('0193d5f4-f0d6-4e44-af23-2117db98a87a', 'f3f5a314-90ab-4fa4-b98f-060298c5381e') }
+    'Microsoft Windows Server 2008 R2*'         { $updateID = 'd4619aa3-c2f9-45b9-a44a-8baf5653fb68'; $prereqs = @('2d84807f-bf34-445b-9f57-cc2fa804e9ff') }
+    'Microsoft Windows Server 2012 Standard*'   { $updateID = '4909411a-0ed6-4761-bdf8-9be2ff71909a'; $prereqs = @() }
+    'Microsoft Windows Server 2012 Datacenter*' { $updateID = '4909411a-0ed6-4761-bdf8-9be2ff71909a'; $prereqs = @() }
+    'Microsoft Windows Server 2012 R2*'         { $updateID = '29159163-0da5-456d-92a5-9bd853a401ae'; $prereqs = @('8452bac0-bf53-4fbd-915d-499de08c338b', '4809ef80-5f6e-4ef0-a4c3-da892c1e2361') }
+    'Microsoft Windows Server 2016 *'           { 
+        $OSVersion = (Invoke-CimMethod -Namespace root\cimv2 -ClassName StdRegProv -MethodName GetSTRINGvalue -Arguments @{hDefKey=[uint32]2147483650; sSubKeyName='SOFTWARE\Microsoft\Windows NT\CurrentVersion'; sValueName='ReleaseId'}).sValue
+        switch ($OSVersion) {
+            '1607'                              { $updateID = 'b90c6608-1562-42b3-a665-18a5bfce7a22'; $prereqs = @() }
+            '1709'                              { $updateID = '3ad66183-2a80-4552-892b-c80c34461704'; $prereqs = @() }
+        }
+    }
 }
 
-if ($hotfix -eq $null) {
-    Write-Output "No hotfix available for this operating system version!"
+if ($updateID -eq $null) {
+    Write-Output "No Spectre/Meltdown update available for this operating system version!"
 } else {
-    if (Get-Hotfix -Id $hotfix -ErrorAction 'silentlycontinue') {
+    #check if update is already installed
+    $Update = Get-UpdateObject -UpdateID $updateID
+    if ($Update.IsInstalled -eq $True) {
         Write-Output "The Spectre/Meltdown hotfix is already installed on this system, nothing to do."
-    Exit 0
+        Exit 0
     }
 
-    $check = Get-WUInstall -KBArticleID $hotfix -ListOnly
-    if (($check -eq $null) -and ($fallbacktowu -eq 'true')) {
+    if (($Update -eq $null) -and ($fallbacktowu -eq 'true')) {
         Write-Output 'Update not found on update server, falling back to Windows Update...'
         $fellbacktoWU = $true
-        $check = Get-WUInstall -KBArticleID $hotfix -ListOnly -WindowsUpdate
+        $Update = Get-UpdateObject -UpdateID $updateID -WindowsUpdate
     }
-    if ($check -eq $null) {
+    if ($Update -eq $null) {
         Write-Output "The Spectre/Meltdown hotfix $hotfix is not being offered to this system by the update server."
 	    Write-Output "Checking if there are prerequirements that may need to be installed first..."
 	    $prereqcheck = Check-Prereqs $prereqs
@@ -1064,21 +1097,21 @@ if ($hotfix -eq $null) {
                 Exit 1
 	        }
 	        else {
-	            Write-Output "The following prerequirement needs to be installed first: $prereqcheck"
+	            Write-Output "The following prerequirement needs to be installed first: $($prereqcheck.Title)"
 		        if ($force -eq 'true') {
                     Write-Output "Force parameter enabled, installing prerequired update..."
 		            if ($reboot -eq 'true') {
                         if ($fellbacktoWU -eq 'true') {
-                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot -WindowsUpdate
+                            Get-WUInstall -KBArticleID $prereqcheck.KB -AcceptAll -AutoReboot -WindowsUpdate
                         } Else {
-                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -AutoReboot
+                            Get-WUInstall -KBArticleID $prereqcheck.KB -AcceptAll -AutoReboot
                         }
 		            }
 		            else {
                         if ($fellbacktoWU -eq 'true') {
-                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot -WindowsUpdate
+                            Get-WUInstall -KBArticleID $prereqcheck.KB -AcceptAll -IgnoreReboot -WindowsUpdate
                         } Else {
-                            Get-WUInstall -KBArticleID $prereqcheck -AcceptAll -IgnoreReboot
+                            Get-WUInstall -KBArticleID $prereqcheck.KB -AcceptAll -IgnoreReboot
                         }
 		            }
                     Exit 0
@@ -1094,23 +1127,23 @@ if ($hotfix -eq $null) {
 	    }        
     }
     if ($force -eq 'true') {
-        Write-Output "Force parameter enabled, installing update..."
+        Write-Output "Force parameter enabled, installing update $($Update.Title)..."
         if ($reboot -eq 'true') {
             if ($fellbacktoWU -eq 'true') {
-                Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot -WindowsUpdate
+                Get-WUInstall -KBArticleID $Update.KB -AcceptAll -AutoReboot -WindowsUpdate
             } Else {
-                Get-WUInstall -KBArticleID $hotfix -AcceptAll -AutoReboot
+                Get-WUInstall -KBArticleID $Update.KB -AcceptAll -AutoReboot
             }
         }
         else {
             if ($fellbacktoWU -eq 'true') {
-                Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot -WindowsUpdate
+                Get-WUInstall -KBArticleID $Update.KB -AcceptAll -IgnoreReboot -WindowsUpdate
             } Else {
-                Get-WUInstall -KBArticleID $hotfix -AcceptAll -IgnoreReboot
+                Get-WUInstall -KBArticleID $Update.KB -AcceptAll -IgnoreReboot
             }
         }
     }
     else {
-        Write-Output "The following Spectre/Meltdown hotfix is available for this system: $hotfix"
+        Write-Output "The following Spectre/Meltdown hotfix is available for this system: $($Update.Title)"
     }
 }
