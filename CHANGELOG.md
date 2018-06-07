@@ -6,8 +6,17 @@ All notable changes to this project will be documented in this file.
 
 **Features**
 
-* Updated `spectre-meltdown-checker.sh` to latest v0.37+ (27MAY2018)
-* Includes Variant 3a (CVE-2018-3640) and Variant 4 (CVE-2018-3639)
+* Linux
+  * Updated `spectre-meltdown-checker.sh` to latest v0.37+ (27MAY2018)
+  * Now includes Variant 3a (CVE-2018-3640) and Variant 4 (CVE-2018-3639)
+* Windows
+  * Upgraded SpeculationControl PowerShell module to v1.0.7
+  * Improved detection of the correct Spectre/Meltdown fix so that the fix can also be found in superseding updates.
+
+**Bugfixes**
+
+* Removed reliance on Hotfix IDs from detection for the meltdown fact in Windows (fixes false negatives). This is achieved by relying on the UpdateID instead of the KB article.
+* Fixed detection of Windows Server 2016 v1709
 
 ## Release 0.9.2
 
