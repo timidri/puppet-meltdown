@@ -94,7 +94,7 @@ This task updates the Linux kernel to the latest version, which contains the pat
 
 #### meltdown::windows_update
 
-This task installs the correct Windows patch for Spectre & Meltdown for Windows Server 2008 R2, 2012 R2, 2016 and 2016 Server Core. The task offers 2 parameters:
+This task installs the correct Windows patch for Spectre & Meltdown for Windows Server 2008 R2, 2012 R2, 2016 and 2016 Server Core. The task offers 3 parameters:
 
 * **fallbacktowu**  : If true, updates can be retrieved from Windows Update directly if they are not provided by the WSUS server 
 * **force**  : if true, the patch installation is actually performed, otherwise it only outputs if the patch is being offered to this system from the update server
@@ -124,7 +124,7 @@ meltdown is tested on the following platforms:
   * Windows Server 2012 R2
   * Windows Server 2016
 
-meltdown works on all Puppet Enterprise versions specified in the compatibility information, but tasks only work starting with 2017.3 and higher. You can use the tasks in this module with Puppet Bolt as well.
+meltdown works on all Puppet Enterprise versions specified in the compatibility information, but tasks only work starting with 2017.3. You can use the tasks in this module with Puppet Bolt as well.
 
 ## Development
 

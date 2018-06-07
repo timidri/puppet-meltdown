@@ -1,4 +1,4 @@
-﻿function Get-SpeculationControlSettings {
+function Get-SpeculationControlSettings {
   <#
 
   .SYNOPSIS
@@ -7,13 +7,14 @@
   .DESCRIPTION
   This function queries the speculation control settings for the system.
 
-  Version 1.3.
+  .PARAMETER Quiet
+  This parameter suppresses host output that is displayed by default.
   
   #>
 
   [CmdletBinding()]
   param (
-
+    [switch]$Quiet
   )
   
   process {
@@ -32,14 +33,30 @@
     $object = New-Object -TypeName PSObject
 
     try {
-    
+   
+        $cpu = Get-WmiObject Win32_Processor
+
+        if ($cpu -is [array]) {
+            $cpu = $cpu[0]
+        }
+
+        $manufacturer = $cpu.Manufacturer
+ 
         #
         # Query branch target injection information.
         #
 
-        Write-Host "Speculation control settings for CVE-2017-5715 [branch target injection]" -ForegroundColor Cyan
-        Write-Host "For more information about the output below, please refer to https://support.microsoft.com/en-in/help/4074629" -ForegroundColor Cyan
-        Write-Host
+        if ($Quiet -ne $true) {
+        
+            Write-Host "Speculation control settings for CVE-2017-5715 [branch target injection]" -ForegroundColor Cyan
+            Write-Host "For more information about the output below, please refer to https://support.microsoft.com/en-in/help/4074629" -ForegroundColor Cyan
+
+            if ($manufacturer -eq "AuthenticAMD") {
+                Write-Host "AMD CPU detected: mitigations for branch target injection on AMD CPUs have additional registry settings for this mitigation, please refer to FAQ #15 at https://portal.msrc.microsoft.com/en-us/security-guidance/advisory/ADV180002" -ForegroundColor Cyan
+            }
+
+            Write-Host
+        }
 
         $btiHardwarePresent = $false
         $btiWindowsSupportPresent = $false
@@ -80,7 +97,7 @@
                 $btiDisabledByNoHardwareSupport = (($flags -band $scfBpbDisabledNoHardwareSupport) -ne 0)
             }
 
-            if ($PSBoundParameters['Verbose']) {
+            if ($Quiet -ne $true -and $PSBoundParameters['Verbose']) {
                 Write-Host "BpbEnabled                   :" (($flags -band $scfBpbEnabled) -ne 0)
                 Write-Host "BpbDisabledSystemPolicy      :" (($flags -band $scfBpbDisabledSystemPolicy) -ne 0)
                 Write-Host "BpbDisabledNoHardwareSupport :" (($flags -band $scfBpbDisabledNoHardwareSupport) -ne 0)
@@ -92,13 +109,15 @@
             }
         }
 
-        Write-Host "Hardware support for branch target injection mitigation is present:"($btiHardwarePresent) -ForegroundColor $(If ($btiHardwarePresent) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
-        Write-Host "Windows OS support for branch target injection mitigation is present:"($btiWindowsSupportPresent) -ForegroundColor $(If ($btiWindowsSupportPresent) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
-        Write-Host "Windows OS support for branch target injection mitigation is enabled:"($btiWindowsSupportEnabled) -ForegroundColor $(If ($btiWindowsSupportEnabled) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
+        if ($Quiet -ne $true) {
+            Write-Host "Hardware support for branch target injection mitigation is present:"($btiHardwarePresent) -ForegroundColor $(If ($btiHardwarePresent) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
+            Write-Host "Windows OS support for branch target injection mitigation is present:"($btiWindowsSupportPresent) -ForegroundColor $(If ($btiWindowsSupportPresent) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
+            Write-Host "Windows OS support for branch target injection mitigation is enabled:"($btiWindowsSupportEnabled) -ForegroundColor $(If ($btiWindowsSupportEnabled) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
   
-        if ($btiWindowsSupportPresent -eq $true -and $btiWindowsSupportEnabled -eq $false) {
-            Write-Host -ForegroundColor Red "Windows OS support for branch target injection mitigation is disabled by system policy:"($btiDisabledBySystemPolicy)
-            Write-Host -ForegroundColor Red "Windows OS support for branch target injection mitigation is disabled by absence of hardware support:"($btiDisabledByNoHardwareSupport)
+            if ($btiWindowsSupportPresent -eq $true -and $btiWindowsSupportEnabled -eq $false) {
+                Write-Host -ForegroundColor Red "Windows OS support for branch target injection mitigation is disabled by system policy:"($btiDisabledBySystemPolicy)
+                Write-Host -ForegroundColor Red "Windows OS support for branch target injection mitigation is disabled by absence of hardware support:"($btiDisabledByNoHardwareSupport)
+            }
         }
         
         $object | Add-Member -MemberType NoteProperty -Name BTIHardwarePresent -Value $btiHardwarePresent
@@ -110,50 +129,17 @@
         #
         # Query kernel VA shadow information.
         #
-
-        Write-Host
-        Write-Host "Speculation control settings for CVE-2017-5754 [rogue data cache load]" -ForegroundColor Cyan
-        Write-Host    
+        
+        if ($Quiet -ne $true) {
+            Write-Host
+            Write-Host "Speculation control settings for CVE-2017-5754 [rogue data cache load]" -ForegroundColor Cyan
+            Write-Host    
+        }
 
         $kvaShadowRequired = $true
         $kvaShadowPresent = $false
         $kvaShadowEnabled = $false
         $kvaShadowPcidEnabled = $false
-
-        $cpu = Get-WmiObject Win32_Processor
-
-        if ($cpu -is [array]) {
-            $cpu = $cpu[0]
-        }
-
-        $manufacturer = $cpu.Manufacturer
-
-        if ($manufacturer -eq "AuthenticAMD") {
-            $kvaShadowRequired = $false
-        }
-        elseif ($manufacturer -eq "GenuineIntel") {
-            $regex = [regex]'Family (\d+) Model (\d+) Stepping (\d+)'
-            $result = $regex.Match($cpu.Description)
-            
-            if ($result.Success) {
-                $family = [System.UInt32]$result.Groups[1].Value
-                $model = [System.UInt32]$result.Groups[2].Value
-                $stepping = [System.UInt32]$result.Groups[3].Value
-                
-                if (($family -eq 0x6) -and 
-                    (($model -eq 0x1c) -or
-                     ($model -eq 0x26) -or
-                     ($model -eq 0x27) -or
-                     ($model -eq 0x36) -or
-                     ($model -eq 0x35))) {
-
-                    $kvaShadowRequired = $false
-                }
-            }
-        }
-        else {
-            throw ("Unsupported processor manufacturer: {0}" -f $manufacturer)
-        }
 
         [System.UInt32]$systemInformationClass = 196
         [System.UInt32]$systemInformationLength = 4
@@ -171,33 +157,71 @@
             [System.UInt32]$kvaShadowUserGlobalFlag = 0x02
             [System.UInt32]$kvaShadowPcidFlag = 0x04
             [System.UInt32]$kvaShadowInvpcidFlag = 0x08
+            [System.UInt32]$kvaShadowRequiredFlag = 0x10
+            [System.UInt32]$kvaShadowRequiredAvailableFlag = 0x20
 
             [System.UInt32]$flags = [System.UInt32][System.Runtime.InteropServices.Marshal]::ReadInt32($systemInformationPtr)
 
             $kvaShadowPresent = $true
             $kvaShadowEnabled = (($flags -band $kvaShadowEnabledFlag) -ne 0)
             $kvaShadowPcidEnabled = ((($flags -band $kvaShadowPcidFlag) -ne 0) -and (($flags -band $kvaShadowInvpcidFlag) -ne 0))
+            
+            if (($flags -band $kvaShadowRequiredAvailableFlag) -ne 0) {
+                $kvaShadowRequired = (($flags -band $kvaShadowRequiredFlag) -ne 0)
+            }
+            else {
 
-            if ($PSBoundParameters['Verbose']) {
+                if ($manufacturer -eq "AuthenticAMD") {
+                    $kvaShadowRequired = $false
+                }
+                elseif ($manufacturer -eq "GenuineIntel") {
+                    $regex = [regex]'Family (\d+) Model (\d+) Stepping (\d+)'
+                    $result = $regex.Match($cpu.Description)
+            
+                    if ($result.Success) {
+                        $family = [System.UInt32]$result.Groups[1].Value
+                        $model = [System.UInt32]$result.Groups[2].Value
+                        $stepping = [System.UInt32]$result.Groups[3].Value
+                
+                        if (($family -eq 0x6) -and 
+                            (($model -eq 0x1c) -or
+                             ($model -eq 0x26) -or
+                             ($model -eq 0x27) -or
+                             ($model -eq 0x36) -or
+                             ($model -eq 0x35))) {
+
+                            $kvaShadowRequired = $false
+                        }
+                    }
+                }
+                else {
+                    throw ("Unsupported processor manufacturer: {0}" -f $manufacturer)
+                }
+            }
+
+            if ($Quiet -ne $true -and $PSBoundParameters['Verbose']) {
                 Write-Host "KvaShadowEnabled             :" (($flags -band $kvaShadowEnabledFlag) -ne 0)
                 Write-Host "KvaShadowUserGlobal          :" (($flags -band $kvaShadowUserGlobalFlag) -ne 0)
                 Write-Host "KvaShadowPcid                :" (($flags -band $kvaShadowPcidFlag) -ne 0)
                 Write-Host "KvaShadowInvpcid             :" (($flags -band $kvaShadowInvpcidFlag) -ne 0)
+                Write-Host "KvaShadowRequired            :" $kvaShadowRequired
+                Write-Host "KvaShadowRequiredAvailable   :" (($flags -band $kvaShadowRequiredAvailableFlag) -ne 0)
             }
         }
         
-        Write-Host "Hardware requires kernel VA shadowing:"$kvaShadowRequired
+        if ($Quiet -ne $true) {
+            Write-Host "Hardware requires kernel VA shadowing:"$kvaShadowRequired
 
-        if ($kvaShadowRequired) {
+            if ($kvaShadowRequired) {
 
-            Write-Host "Windows OS support for kernel VA shadow is present:"$kvaShadowPresent -ForegroundColor $(If ($kvaShadowPresent) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
-            Write-Host "Windows OS support for kernel VA shadow is enabled:"$kvaShadowEnabled -ForegroundColor $(If ($kvaShadowEnabled) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
+                Write-Host "Windows OS support for kernel VA shadow is present:"$kvaShadowPresent -ForegroundColor $(If ($kvaShadowPresent) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
+                Write-Host "Windows OS support for kernel VA shadow is enabled:"$kvaShadowEnabled -ForegroundColor $(If ($kvaShadowEnabled) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::Red })
 
-            if ($kvaShadowEnabled) {
-                Write-Host "Windows OS support for PCID performance optimization is enabled: $kvaShadowPcidEnabled [not required for security]" -ForegroundColor $(If ($kvaShadowPcidEnabled) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::White })
+                if ($kvaShadowEnabled) {
+                    Write-Host "Windows OS support for PCID performance optimization is enabled: $kvaShadowPcidEnabled [not required for security]" -ForegroundColor $(If ($kvaShadowPcidEnabled) { [System.ConsoleColor]::Green } Else { [System.ConsoleColor]::White })
+                }
             }
         }
-
         
         $object | Add-Member -MemberType NoteProperty -Name KVAShadowRequired -Value $kvaShadowRequired
         $object | Add-Member -MemberType NoteProperty -Name KVAShadowWindowsSupportPresent -Value $kvaShadowPresent
@@ -239,7 +263,7 @@
             $actions += "Follow the guidance for enabling Windows $guidanceType support for speculation control mitigations described in $guidanceUri"
         }
 
-        if ($actions.Length -gt 0) {
+        if ($Quiet -ne $true -and $actions.Length -gt 0) {
 
             Write-Host
             Write-Host "Suggested actions" -ForegroundColor Cyan
@@ -249,7 +273,6 @@
                 Write-Host " *" $action
             }
         }
-
 
         return $object
 
@@ -270,33 +293,33 @@
 # SIG # Begin signature block
 # MIIdhgYJKoZIhvcNAQcCoIIddzCCHXMCAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
 # gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUQ9IV8Md0WGIJyaMA98FAqUKn
-# rY6gghhUMIIEwjCCA6qgAwIBAgITMwAAAMM7uBDWq3WchAAAAAAAwzANBgkqhkiG
+# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUy5heJ8BbMB7yIMuCD3kqCVXg
+# v4igghhUMIIEwjCCA6qgAwIBAgITMwAAAL6kD/XJpQ7hMAAAAAAAvjANBgkqhkiG
 # 9w0BAQUFADB3MQswCQYDVQQGEwJVUzETMBEGA1UECBMKV2FzaGluZ3RvbjEQMA4G
 # A1UEBxMHUmVkbW9uZDEeMBwGA1UEChMVTWljcm9zb2Z0IENvcnBvcmF0aW9uMSEw
-# HwYDVQQDExhNaWNyb3NvZnQgVGltZS1TdGFtcCBQQ0EwHhcNMTYwOTA3MTc1ODUx
-# WhcNMTgwOTA3MTc1ODUxWjCBsjELMAkGA1UEBhMCVVMxEzARBgNVBAgTCldhc2hp
+# HwYDVQQDExhNaWNyb3NvZnQgVGltZS1TdGFtcCBQQ0EwHhcNMTYwOTA3MTc1ODQ5
+# WhcNMTgwOTA3MTc1ODQ5WjCBsjELMAkGA1UEBhMCVVMxEzARBgNVBAgTCldhc2hp
 # bmd0b24xEDAOBgNVBAcTB1JlZG1vbmQxHjAcBgNVBAoTFU1pY3Jvc29mdCBDb3Jw
 # b3JhdGlvbjEMMAoGA1UECxMDQU9DMScwJQYDVQQLEx5uQ2lwaGVyIERTRSBFU046
-# RDIzNi0zN0RBLTk3NjExJTAjBgNVBAMTHE1pY3Jvc29mdCBUaW1lLVN0YW1wIFNl
-# cnZpY2UwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCiOG2wDGVZj5ZH
-# gCl0ZaExy6HZQZ9T2uupPuxqtiWqXH2oIj762GqMc1JPYHkpEo5alygWdvB3D6FS
-# qpA8al+mGJTMktlA+ydstLPRr6CBoEF+hm6RBzwVlsN9z6BVppwIZWt2lEVG6r1Y
-# W1y1rb0d4FsA8qwRSI0sB8sAw9IHXi/J4Jd6klQvw2m6oLXl9C73/1DldPPZYGOT
-# DQ98RxIaYewvksnNqblmvFpOx8Kuedkxl4jtAKl0F/2+QqRfU32OAiCiYFgZIgOP
-# B4A8UbHmLIyn7pNqtom4NqMiZz9G4Bm5bwILhElYcZPMq/P1Hr38/WoAD99WAm3W
-# FpXSFZejAgMBAAGjggEJMIIBBTAdBgNVHQ4EFgQUc3cXeGMQ8QV4IbaO4PEw84WH
-# F6gwHwYDVR0jBBgwFoAUIzT42VJGcArtQPt2+7MrsMM1sw8wVAYDVR0fBE0wSzBJ
+# ODQzRC0zN0Y2LUYxMDQxJTAjBgNVBAMTHE1pY3Jvc29mdCBUaW1lLVN0YW1wIFNl
+# cnZpY2UwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQCROfFjRVxKmgTC
+# tN14U6jxq1vAK7TBi39qS2BIU56Xw1IeOFNjg7bw6O8DMLr04Ghia8ath6lj3yab
+# PSyXiYULrfk/7PkLUAqDbr6CFA/kuvoLYmePEgYKgI2vtruq05MABGYyw4WpUfLt
+# chCNiBYWawyrdeHaw80xvfUrb7cDAU8st94bIkgyboaDN7f3oIzQHqyxok8XSSaZ
+# JKTyqNtEtDo7p6ZJ3ygCa98lCk/SjpVnLkGlX0lJ3y/H2FM28gNnfQZQO8Pe0ICv
+# 3KCpi4CPqx9LEuPgQoJrYK573I1LJlbjTV+l73UHPbo2w40W9L1SGu5UWrwNb6tZ
+# qk4RwEvJAgMBAAGjggEJMIIBBTAdBgNVHQ4EFgQUHG4NXaJsQp0+3x29Li7nwpc0
+# kH8wHwYDVR0jBBgwFoAUIzT42VJGcArtQPt2+7MrsMM1sw8wVAYDVR0fBE0wSzBJ
 # oEegRYZDaHR0cDovL2NybC5taWNyb3NvZnQuY29tL3BraS9jcmwvcHJvZHVjdHMv
 # TWljcm9zb2Z0VGltZVN0YW1wUENBLmNybDBYBggrBgEFBQcBAQRMMEowSAYIKwYB
 # BQUHMAKGPGh0dHA6Ly93d3cubWljcm9zb2Z0LmNvbS9wa2kvY2VydHMvTWljcm9z
 # b2Z0VGltZVN0YW1wUENBLmNydDATBgNVHSUEDDAKBggrBgEFBQcDCDANBgkqhkiG
-# 9w0BAQUFAAOCAQEASOPK1ntqWwaIWnNINY+LlmHQ4Q88h6TON0aE+6cZ2RrjBUU4
-# 9STkyQ2lgvKpmIkQYWJbuNRh65IJ1HInwhD8XWd0f0JXAIrzTlL0zw3SdbrtyZ9s
-# P4NxqyjQ23xBiI/d13CrtfTAVlGYIY1Ahl80+0KGyuUzJLTi9350/gHaI0Jz3irw
-# rJ+htxF1UW/NT0AYJyRYe2el9JhgeudeKOKav3fQBlzALQmk4Ekoyq3muJHGoqfe
-# No4zsP/M+WQ6oBMlUq8/49sg/ryuP0EeVtNiePuxPmX5i6Knzpd3rPgKPS+9Tq1d
-# KLts1K4rjpASoKSs8Ubv3rwQSw0O/zTd1bc8EjCCBgEwggPpoAMCAQICEzMAAADE
+# 9w0BAQUFAAOCAQEAbmBxbLeCqxsZFPMYFz/20DMP8Q12dH/1cNQursRMH0Yg0cTw
+# Ln1IF3DGypfHZJwbyl9HWNVf+2Jq05zMajfjxiEu+khzmMnA9/BJ1utPwR0nPyyL
+# bN+0IGBMfYLeIAdC81e0CW9TpWpc6lH/jgWbhviUt4Mvt2DQMWIQ7WwJAdBeGjCn
+# tLINPxC9RmHysFGexMsXS+hYNR2z/h/PmvsNwhq7CtM6bM71ZvYFaBSCmtdQ8/KQ
+# CPiN6acb2V/28VuZEwjq3GFAJfcKMvhssewRgCYsKxhvWZHUkBrUxWnsvxNCOWPp
+# enBiVSYl5nT9jBoVoTDChMITR35gr//DmhzXszCCBgEwggPpoAMCAQICEzMAAADE
 # 6Yn4eoFQ6f8AAAAAAMQwDQYJKoZIhvcNAQELBQAwfjELMAkGA1UEBhMCVVMxEzAR
 # BgNVBAgTCldhc2hpbmd0b24xEDAOBgNVBAcTB1JlZG1vbmQxHjAcBgNVBAoTFU1p
 # Y3Jvc29mdCBDb3Jwb3JhdGlvbjEoMCYGA1UEAxMfTWljcm9zb2Z0IENvZGUgU2ln
@@ -406,24 +429,24 @@
 # MCYGA1UEAxMfTWljcm9zb2Z0IENvZGUgU2lnbmluZyBQQ0EgMjAxMQITMwAAAMTp
 # ifh6gVDp/wAAAAAAxDAJBgUrDgMCGgUAoIGwMBkGCSqGSIb3DQEJAzEMBgorBgEE
 # AYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMCMGCSqGSIb3DQEJ
-# BDEWBBQiAniw5LZI3dqvpvsDWcwo2s1dBjBQBgorBgEEAYI3AgEMMUIwQKAWgBQA
+# BDEWBBQk4fTWmc2rjTwCHEltWjlRhbwLgTBQBgorBgEEAYI3AgEMMUIwQKAWgBQA
 # UABvAHcAZQByAFMAaABlAGwAbKEmgCRodHRwOi8vd3d3Lm1pY3Jvc29mdC5jb20v
-# UG93ZXJTaGVsbCAwDQYJKoZIhvcNAQEBBQAEggEAP2wzhViFuoswHAs4ZgqtdhsZ
-# CIedxH1SFgtMs+nBrZaDq67PXlqM+AXpy3ZZFZuxI9sA5sZS3EaJ3LUv0frnZAQO
-# wJLuP0FnmRpnpuyJaO36uJqKYRt0Jf6XCBsHG2oH5lgJ5J2H/AjEtlu7eG6oEbFB
-# 8OqLsKDnu594Ns26YgkyEmzXwSx9YGyZaMKWuIPuOziGHb6i9JTf7qw/z6RxYhkk
-# YPYCK2+PAfowkgszyD6bvrXTtYJEDfnQdpi+6bBHM2IvS4hYm2Bp68OCXTuGMudc
-# Aqy1cY/dRMJ12y0vZCn05k06gI42+e8FrDS1UctyrdnK01L4dTvNXoLLlTuW6qGC
+# UG93ZXJTaGVsbCAwDQYJKoZIhvcNAQEBBQAEggEAbdae0Wc+e9V+OqFeah616Ojk
+# 76BdifvJQDul3a5/614CWeY39qAR4PPzIGlBLRN8xpsckrbx2Gd3sAsNCMksB1Gr
+# N5pHwNkJ5D/pu1omREJSNUpVKYVA1sYc6OVtsuHaJNZIp+aII5flwF6NC9DpNEvi
+# 47w76kTPH5i9k6IsmJBFUBAHbwf/BKLmLoQOkjHSUzEzGUl0cu2SquneVSj2gq1p
+# GN/ER+emfn5wsxmPm5BzxELPfi7fsIuqDNDzAAVyvLBTQ/MZyGrTWm/tM8aWbVUZ
+# AR38UMNKArK+eVo6N0SNszsXcwPDbBoXCchnp9kjbg6d0fpZetelnjvI7iTdbaGC
 # AigwggIkBgkqhkiG9w0BCQYxggIVMIICEQIBATCBjjB3MQswCQYDVQQGEwJVUzET
 # MBEGA1UECBMKV2FzaGluZ3RvbjEQMA4GA1UEBxMHUmVkbW9uZDEeMBwGA1UEChMV
 # TWljcm9zb2Z0IENvcnBvcmF0aW9uMSEwHwYDVQQDExhNaWNyb3NvZnQgVGltZS1T
-# dGFtcCBQQ0ECEzMAAADDO7gQ1qt1nIQAAAAAAMMwCQYFKw4DAhoFAKBdMBgGCSqG
-# SIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTE4MDExMTAyMDYx
-# OVowIwYJKoZIhvcNAQkEMRYEFNGczCqUsmUUttwn1/AMxWSRBnNFMA0GCSqGSIb3
-# DQEBBQUABIIBABp+TPoLwXyiaTLhFNtBEbr2PN796R7ak1NpDXk44TYGysiuQqJa
-# MY3iLu28C+woO/yEXaxASAkJmljR6mkCWRind+YC8/9NTHJ9D9P8/siBPALgwe73
-# PfNJUiy+MB5m4Pt/YPnSeHQuzxypH7XHnPHOtaQjb1ElJofSAejg3zzxgFi06SjV
-# Sep4BzTwVjjt4W28efV57htQHl3/bfjg283ZT8mJf0H3Kd9+mkPtBR+uym006MGL
-# FfniBrR2KUyPmxuYh9zyzHwxUtyf2YeZrDf3cPYeu45f1lIQx4hzkmZh0vu7QUTr
-# Z52xPsQhae7gxX5L/AiGJXsu/VTRr0ch374=
+# dGFtcCBQQ0ECEzMAAAC+pA/1yaUO4TAAAAAAAL4wCQYFKw4DAhoFAKBdMBgGCSqG
+# SIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTE4MDQxMDIzMTky
+# M1owIwYJKoZIhvcNAQkEMRYEFNiuLlOuPhFV3gDi0/6+2m9yzjcAMA0GCSqGSIb3
+# DQEBBQUABIIBAJAf1RxBLnWqyjb5DOHFuptNwo79gat0IAUscZv2l3lmXAB8ktvd
+# ER5EFNYX+LzWKVMLQtKebG4skxLFtzo+OIwFc2MIZv7I4LmgCK43NIFjOL7eccdp
+# AeqCvEwJWOCTBVTWF4DmNNTU08o9XD+S/gIBF7RCgv+TPYB19DsKiWB8PnJuzDWm
+# nUkjYoFHcsu2/geUqf/AxF43txfICAcDTyNKaHBkIatZiUHBOVLYk4Mo3+bwXV7k
+# Bhrx5oIFa+CBVHI0MHEw1AUl1nRHOtBlrynGLClnztfJ1fmUgyxPQMyE/bUlaTki
+# mQlbtx98/h5O7VwwV5GcH2kyYrOwDBFQgAc=
 # SIG # End signature block

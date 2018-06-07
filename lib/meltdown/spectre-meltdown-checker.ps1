@@ -1,28 +1,15 @@
 Function Add-SpectreVariants {
     #This function adds CVE's for Spectre variants 1,2 and 3 (Meltdown)
     Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\meltdown\SpeculationControl.psd1
-    function global:Write-Host() {}
-    $SpeculationControl = Get-SpeculationControlSettings
-    
-    switch -Wildcard ((Get-WmiObject -class Win32_OperatingSystem).Caption) {
-        'Microsoft Windows Server 2008 Standard*'   { $hotfix = 'KB4090450' }
-        'Microsoft Windows Server 2008 Enterprise*' { $hotfix = 'KB4090450' }
-        'Microsoft Windows Server 2008 Datacenter'  { $hotfix = 'KB4090450' }
-        'Microsoft Windows Server 2008 R2*'         { $hotfix = 'KB4056897' }
-        'Microsoft Windows Server 2012 Standard*'   { $hotfix = 'KB4088877' }
-        'Microsoft Windows Server 2012 Datacenter*' { $hotfix = 'KB4088877' }
-        'Microsoft Windows Server 2012 R2*'         { $hotfix = 'KB4056898' }
-        'Microsoft Windows Server 2016*'            { $hotfix = 'KB4056890' }
-        'Microsoft Windows Server, version 1709*'   { $hotfix = 'KB4056892' }
-    }
+    $SpeculationControl = Get-SpeculationControlSettings -Quiet
 
-    if ($hotfix) {
+    if ([Environment]::OSVersion.Version.Major -ge 6) {
         $arrCVE.Add('CVE-2017-5753', @{
             "CVE"              = "2017-5753"
             "description"      = "Spectre Variant 1"
-            "vulnerable"       = if ([bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)) {$False} else {$True}
+            "vulnerable"       = !$SpeculationControl.BTIWindowsSupportPresent
             "info"             = @{
-                "hotfix_installed" = [bool](Get-WmiObject -query 'select * from win32_quickfixengineering' | ? HotFixID -eq $hotfix)
+                "hotfix_installed" = $SpeculationControl.BTIWindowsSupportPresent
             }
         })
         $arrCVE.Add('CVE-2017-5715', @{
