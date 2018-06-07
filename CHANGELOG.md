@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.3
+
+**Features**
+
+* Updated `spectre-meltdown-checker.sh` to latest v0.37+ (27MAY2018)
+* Includes Variant 3a (CVE-2018-3640) and Variant 4 (CVE-2018-3639)
+
 ## Release 0.9.2
 
 **Features**
