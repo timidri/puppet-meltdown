@@ -4,14 +4,14 @@
 #### Table of Contents
 
 1. [Description](#description)
-2. [Setup - The basics of getting started with meltdown](#setup)
-4. [Reference - An under-the-hood peek at what the module is doing and how](#reference)
-5. [Limitations - OS compatibility, etc.](#limitations)
-6. [Development - Guide for contributing to the module](#development)
+1. [Setup - The basics of getting started with meltdown](#setup)
+1. [Reference - An under-the-hood peek at what the module is doing and how](#reference)
+1. [Limitations - OS compatibility, etc.](#limitations)
+1. [Development - Guide for contributing to the module](#development)
 
 ## Description
 
-This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability. 
+This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715, CVE-2018-3640, CVE-2018-3639) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability.
 
 *NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
 
