@@ -128,3 +128,4 @@ meltdown works on all Puppet Enterprise versions specified in the compatibility 
 ## Development
 
 Contributions for adding other platforms and improving remediation use cases are welcomed.
+
