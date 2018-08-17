@@ -10,7 +10,7 @@
 
 ## Description
 
-This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715, CVE-2018-3640, CVE-2018-3639) vulnerabilities. It then offers some tasks and manifests which help remediate the vulnerability.
+This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715, CVE-2018-3640, CVE-2018-3639) vulnerabilities. On Linux, it also detects CVE-2018-3615, CVE-2018-3620, CVE-2018-3646 [L1 terminal fault] aka 'Foreshadow & Foreshadow-NG'. It then offers some tasks and manifests which help remediate the vulnerability.
 
 *NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
 

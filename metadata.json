@@ -1,6 +1,6 @@
 {
   "name": "timidri-meltdown",
-  "version": "0.9.3",
+  "version": "0.9.4",
   "author": "Dimitri Tischenko & Kevin Reeuwijk",
   "summary": "Detect and remediate Meltdown / Spectre vulnerability",
   "license": "Apache-2.0",
@@ -68,7 +68,7 @@
       "version_requirement": ">= 4.7.0 < 6.0.0"
     }
   ],
-  "pdk-version": "1.4.1",
+  "pdk-version": "1.6.1",
   "template-url": "file:///opt/puppetlabs/pdk/share/cache/pdk-templates.git",
-  "template-ref": "1.4.1-0-g52adbbb"
+  "template-ref": "1.6.1-0-g6b0d497"
 }

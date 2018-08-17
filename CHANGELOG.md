@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.4
+
+**Features**
+
+* Linux
+  * Updated `spectre-meltdown-checker.sh` to latest v0.39 (13AUG2018)
+  * Now includes CVE-2018-3615, CVE-2018-3620, CVE-2018-3646 [L1 terminal fault] aka 'Foreshadow & Foreshadow-NG'
+
 ## Release 0.9.3
 
 **Features**
