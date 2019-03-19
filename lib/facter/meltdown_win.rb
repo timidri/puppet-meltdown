@@ -12,6 +12,6 @@ Facter.add('meltdown') do
       'meltdown',
       'spectre-meltdown-checker.ps1',
     )
-    JSON.parse(Facter::Util::Resolution.exec("#{powershell} -ExecutionPolicy Unrestricted -File #{checker_script}"))
+    JSON.parse(Facter::Util::Resolution.exec("#{powershell} -noprofile -ExecutionPolicy Unrestricted -File #{checker_script}"))
   end
 end
