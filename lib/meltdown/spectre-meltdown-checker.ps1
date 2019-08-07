@@ -103,11 +103,10 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2019-1125', @{
             "CVE"              = "2019-1125"
             "description"      = "SWAPGS"
-            "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($False) {$False} else {$True}
             "info"             = @{
-                "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
-                "hotfix_enabled"   = $SpeculationControl.MDSWindowsSupportEnabled
-                "hardware_vulnerable" = $SpeculationControl.MDSHardwareVulnerable
+                "hotfix_installed" = $False
+                "hotfix_enabled"   = $False
             }
         })
     }
