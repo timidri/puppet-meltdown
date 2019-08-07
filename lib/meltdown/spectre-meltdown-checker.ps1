@@ -6,7 +6,7 @@ Function Add-SpectreVariants {
     if ([Environment]::OSVersion.Version.Major -ge 6) {
         $arrCVE.Add('CVE-2017-5753', @{
             "CVE"              = "2017-5753"
-            "description"      = "Spectre Variant 1"
+            "description"      = "Spectre Variant 1 (Bounds Check Bypass)"
             "vulnerable"       = !$SpeculationControl.BTIWindowsSupportPresent
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.BTIWindowsSupportPresent
@@ -93,6 +93,16 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2018-12130', @{
             "CVE"              = "2018-12130"
             "description"      = "Microarchitectural Load Port Data Sampling (MLPDS)"
+            "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
+            "info"             = @{
+                "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
+                "hotfix_enabled"   = $SpeculationControl.MDSWindowsSupportEnabled
+                "hardware_vulnerable" = $SpeculationControl.MDSHardwareVulnerable
+            }
+        })
+        $arrCVE.Add('CVE-2019-1125', @{
+            "CVE"              = "2019-1125"
+            "description"      = "SWAPGS"
             "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
