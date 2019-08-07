@@ -22,6 +22,8 @@ Function Add-SpectreVariants {
                 "hardware_support" = $SpeculationControl.BTIHardwarePresent
                 "hotfix_disable_due_to_lack_of_hardware_support" = $SpeculationControl.BTIDisabledByNoHardwareSupport
                 "hotfix_disable_via_system_policy" = $SpeculationControl.BTIDisabledBySystemPolicy
+                "retpoline_enabled" = $SpeculationControl.BTIKernelRetpolineEnabled
+                "kernel_import_optimization_enabled" = $SpeculationControl.BTIKernelImportOptimizationEnabled
             }
         })
         $arrCVE.Add('CVE-2017-5754', @{
