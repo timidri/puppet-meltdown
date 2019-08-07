@@ -10,7 +10,7 @@
 
 ## Description
 
-This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754) or Spectre (CVE-2017-5753, CVE-2017-5715, CVE-2018-3640, CVE-2018-3639) vulnerabilities. On Linux, it also detects CVE-2018-3615, CVE-2018-3620, CVE-2018-3646 [L1 terminal fault] aka 'Foreshadow & Foreshadow-NG'. It then offers some tasks and manifests which help remediate the vulnerability.
+This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754), Spectre (CVE-2017-5753, CVE-2017-5715, CVE-2018-3640, CVE-2018-3639) and related vulnerabilities (CVE-2018-3615, CVE-2018-3620, CVE-2018-3646) [L1 terminal fault] aka 'Foreshadow & Foreshadow-NG'. It then offers some tasks and manifests which help remediate the vulnerability. On Windows it also detects CVE-2019-1125, aka SWAPGS.
 
 *NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
 
@@ -20,7 +20,7 @@ The module uses some code created by others, which we'd like to recognize here:
 
 For Linux, the module uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
 
-For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.4 and the Get-WUInstall function from Michal Gajda - see https://github.com/noma4i/puppet-windows_updates. All credits to them for these awesome functions.
+For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.14 and the Get-WUInstall function from Michal Gajda - see https://github.com/noma4i/puppet-windows_updates. All credits to them for these awesome functions.
 
 ## Setup
 
@@ -55,7 +55,7 @@ This is a json object of the following form:
   {
     "CVE-2017-5753" : {
       "CVE" : "2017-5753",
-      "description" : "Spectre Variant 1",
+      "description" : "Spectre Variant 1 (Bounds Check Bypass)",
       "info" : {
         <specific info relevant to your OS & hardware>
       },
@@ -63,7 +63,7 @@ This is a json object of the following form:
     },
     "CVE-2017-5715" : {
       "CVE" : "2017-5715",
-      "description" : "Spectre Variant 2",
+      "description" : "Spectre Variant 2 (Branch Target Injection)",
       "info" : {
         <specific info relevant to your OS & hardware>
       },
@@ -71,12 +71,68 @@ This is a json object of the following form:
     },
     "CVE-2017-5754" : {
       "CVE" : "2017-5754",
-      "description" : "Spectre Variant 3 - also known as Meltdown",
+      "description" : "Spectre Variant 3 - also known as Meltdown  (Rogue Data Cache Load)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
+    "CVE-2018-3620" : {
+      "CVE" : "2018-3620",
+      "description" : "Spectre Variant (L1 Terminal Fault)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
+    "CVE-2018-3639" : {
+      "CVE" : "2018-3639",
+      "description" : "Spectre Variant 4 (Speculative Store Bypass)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
+    "CVE-2019-1125" : {
+      "CVE" : "2019-1125",
+      "description" : "Spectre variant 1 variant - SWAPGS",
       "info" : {
         <specific info relevant to your OS & hardware>
       },
       "vulnerable" : false
-    }
+    },
+    "CVE-2018-12126" : {
+      "CVE" : "2018-12126",
+      "description" : "Microarchitectural Store Buffer Data Sampling (MSBDS)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
+    "CVE-2018-12127" : {
+      "CVE" : "2018-12127",
+      "description" : "Microarchitectural Fill Buffer Data Sampling (MFBDS)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
+    "CVE-2018-12130" : {
+      "CVE" : "2018-12130",
+      "description" : "Microarchitectural Load Port Data Sampling (MLPDS)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
+    "CVE-2019-11091" : {
+      "CVE" : "2019-11091",
+      "description" : "Microarchitectural Data Sampling Uncacheable Memory (MDSUM)",
+      "info" : {
+        <specific info relevant to your OS & hardware>
+      },
+      "vulnerable" : true
+    },
   }
 ```
 

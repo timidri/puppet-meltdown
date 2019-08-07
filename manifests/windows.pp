@@ -8,7 +8,7 @@ class meltdown::windows {
     ensure => present,
     path   => 'HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management\FeatureSettingsOverride',
     type   => dword,
-    data   => 0,
+    data   => 72,
   }
   registry_value { 'SpeculativeExecutionProtection_FeatureSettingsOverrideMask':
     ensure => present,
