@@ -31,10 +31,10 @@ Function Add-SpectreVariants {
             "description"      = "Spectre Variant 3 - also known as Meltdown (Rogue Data Cache Load)"
             "vulnerable"       = if (!$SpeculationControl.KVAShadowRequired -or ($SpeculationControl.KVAShadowRequired -and $SpeculationControl.KVAShadowWindowsSupportEnabled)) {$False} else {$True}
             "info"             = @{
+                "hotfix_required" = $SpeculationControl.KVAShadowRequired
                 "hotfix_installed" = $SpeculationControl.KVAShadowWindowsSupportPresent
-                "hotfix_enabled"   = $SpeculationControl.KVAShadowWindowsSupportEnabled
-                "hardware_support" = $SpeculationControl.KVAShadowPcidEnabled
-                "hardware_support_required" = $SpeculationControl.KVAShadowRequired
+                "hotfix_enabled" = $SpeculationControl.KVAShadowWindowsSupportEnabled
+                "pcid_optimizations_enabled" = $SpeculationControl.KVAShadowPcidEnabled
             }
         })
         $arrCVE.Add('CVE-2018-3639', @{
@@ -50,7 +50,7 @@ Function Add-SpectreVariants {
         })
         $arrCVE.Add('CVE-2018-3620', @{
             "CVE"              = "2018-3620"
-            "description"      = "Spectre Variant (L1 Terminal Fault)"
+            "description"      = "Spectre Variant 'Foreshadow' (L1 Terminal Fault)"
             "vulnerable"       = if ($SpeculationControl.L1TFWindowsSupportEnabled -or !$SpeculationControl.L1TFHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.L1TFWindowsSupportPresent
