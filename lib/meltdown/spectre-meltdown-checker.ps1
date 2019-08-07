@@ -40,7 +40,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2018-3639', @{
             "CVE"              = "2018-3639"
             "description"      = "Spectre Variant 4 (Speculative Store Bypass)"
-            "vulnerable"       = if ($SSBDWindowsSupportEnabledSystemWide -or !$SSBDHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.$SSBDWindowsSupportEnabledSystemWide -or !$SpeculationControl.$SSBDHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.SSBDWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.SSBDWindowsSupportEnabledSystemWide
@@ -51,7 +51,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2018-3620', @{
             "CVE"              = "2018-3620"
             "description"      = "Spectre Variant (L1 Terminal Fault)"
-            "vulnerable"       = if ($L1TFWindowsSupportEnabled -or !$L1TFHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.$L1TFWindowsSupportEnabled -or !$SpeculationControl.$L1TFHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.L1TFWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.L1TFWindowsSupportEnabled
@@ -63,7 +63,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2019-11091', @{
             "CVE"              = "2019-11091"
             "description"      = "Microarchitectural Data Sampling Uncacheable Memory (MDSUM)"
-            "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.$MDSWindowsSupportEnabled -or !$SpeculationControl.$MDSHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.MDSWindowsSupportEnabled
@@ -73,7 +73,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2018-12126', @{
             "CVE"              = "2018-12126"
             "description"      = "Microarchitectural Store Buffer Data Sampling (MSBDS)"
-            "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.$MDSWindowsSupportEnabled -or !$SpeculationControl.$MDSHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.MDSWindowsSupportEnabled
@@ -83,7 +83,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2018-12127', @{
             "CVE"              = "2018-12127"
             "description"      = "Microarchitectural Fill Buffer Data Sampling (MFBDS)"
-            "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.$MDSWindowsSupportEnabled -or !$SpeculationControl.$MDSHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.MDSWindowsSupportEnabled
@@ -93,7 +93,7 @@ Function Add-SpectreVariants {
         $arrCVE.Add('CVE-2018-12130', @{
             "CVE"              = "2018-12130"
             "description"      = "Microarchitectural Load Port Data Sampling (MLPDS)"
-            "vulnerable"       = if ($MDSWindowsSupportEnabled -or !$MDSHardwareVulnerable) {$False} else {$True}
+            "vulnerable"       = if ($SpeculationControl.$MDSWindowsSupportEnabled -or !$SpeculationControl.$MDSHardwareVulnerable) {$False} else {$True}
             "info"             = @{
                 "hotfix_installed" = $SpeculationControl.MDSWindowsSupportPresent
                 "hotfix_enabled"   = $SpeculationControl.MDSWindowsSupportEnabled
