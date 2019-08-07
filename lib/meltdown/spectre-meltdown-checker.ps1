@@ -100,13 +100,31 @@ Function Add-SpectreVariants {
                 "hardware_vulnerable" = $SpeculationControl.MDSHardwareVulnerable
             }
         })
+        $NTOSKRNL_version = (get-item $Env:SystemRoot\System32\ntoskrnl.exe).VersionInfo.ProductVersion
+        $CVE_2019_1125_vulnerable = switch -Wildcard ((Get-WmiObject Win32_OperatingSystem).caption) {
+           'Microsoft Windows Server 2008 Standard*' { if ($NTOSKRNL_version -gt '6.0.6003.20562') {$False} else {$True} }
+           'Microsoft Windows Server 2008 Enterprise*' { if ($NTOSKRNL_version -gt '6.0.6003.20562') {$False} else {$True} }
+           'Microsoft Windows Server 2008 Datacenter*' { if ($NTOSKRNL_version -gt '6.0.6003.20562') {$False} else {$True} }
+           'Microsoft Windows Server 2008 R2*' { if ($NTOSKRNL_version -gt '6.1.7601.24499') {$False} else {$True} }
+           'Microsoft Windows Server 2012 Standard*' { if ($NTOSKRNL_version -gt '6.2.9200.22794') {$False} else {$True} }
+           'Microsoft Windows Server 2012 Datacenter*' { if ($NTOSKRNL_version -gt '6.2.9200.22794') {$False} else {$True} }
+           'Microsoft Windows Server 2012 R2*' { if ($NTOSKRNL_version -gt '6.3.9600.19395') {$False} else {$True} }
+           'Microsoft Windows Server 2016 *' {
+                $OSVersion = (Invoke-CimMethod -Namespace root\cimv2 -ClassName StdRegProv -MethodName GetSTRINGvalue -Arguments @{hDefKey=[uint32]2147483650; sSubKeyName='SOFTWARE\Microsoft\Windows NT\CurrentVersion'; sValueName='ReleaseId'}).sValue
+                switch ($OSVersion) {
+                    '1607' { if ($NTOSKRNL_version -gt '10.0.14393.3085') {$False} else {$True} }
+                    '1803' { if ($NTOSKRNL_version -gt '10.0.17134.885') {$False} else {$True} }
+                    '1809' { if ($NTOSKRNL_version -gt '10.0.17763.615') {$False} else {$True} }
+                }
+            }
+            'Microsoft Windows Server 2019 *' { if ($NTOSKRNL_version -gt '10.0.17763.615') {$False} else {$True} }
+        }
         $arrCVE.Add('CVE-2019-1125', @{
             "CVE"              = "2019-1125"
-            "description"      = "SWAPGS"
-            "vulnerable"       = if ($False) {$False} else {$True}
+            "description"      = "Spectre variant 1 variant - SWAPGS"
+            "vulnerable"       = $CVE_2019_1125_vulnerable
             "info"             = @{
-                "hotfix_installed" = $False
-                "hotfix_enabled"   = $False
+                "hotfix_installed" = !$CVE_2019_1125_vulnerable
             }
         })
     }
