@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.5
+
+**Features**
+
+* Windows
+  * Updated `spectre-meltdown-checker.ps1` to latest version (8AUG2019)
+  * Now includes CVE-2018-3639 [Variant 4 - Speculative Store Bypass]
+  * Now includes CVE-2018-3620 [L1 terminal fault] aka 'Foreshadow & Foreshadow-NG'
+  * Now includes CVE-2019-11091, CVE-2018-12126, CVE-2018-12127, CVE-2018-12130 [Microarchitectural Data Sampling]
+  * Now includes CVE-2019-1125 [SWAPGS] (detection currently based on NTOSKRNL.EXE version)
+
 ## Release 0.9.4
 
 **Features**
