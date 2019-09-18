@@ -10,21 +10,53 @@
 
 ## Description
 
-This module detects whether your system is vulnerable for Meltdown (CVE-2017-5754), Spectre (CVE-2017-5753, CVE-2017-5715, CVE-2018-3640, CVE-2018-3639) and related vulnerabilities (CVE-2018-3615, CVE-2018-3620, CVE-2018-3646) [L1 terminal fault] aka 'Foreshadow & Foreshadow-NG'. It then offers some tasks and manifests which help remediate the vulnerability. On Windows it also detects CVE-2019-1125, aka SWAPGS.
+This module detects whether your system is vulnerable for Meltdown and Spectre.
+
+### Detection on Linux
+
+On Linux, the module detects the following vulnerabilities (listed in alphabetical order):
+
+* CVE-2017-5715 [branch target injection] aka 'Spectre Variant 2'
+* CVE-2017-5753 [bounds check bypass] aka 'Spectre Variant 1'
+* CVE-2017-5754 [rogue data cache load] aka 'Meltdown' aka 'Variant 3'
+* CVE-2018-12126 [microarchitectural store buffer data sampling (MSBDS)] aka 'Fallout'
+* CVE-2018-12127 [microarchitectural load port data sampling (MLPDS)] aka 'RIDL'
+* CVE-2018-12130 [microarchitectural fill buffer data sampling (MFBDS)] aka 'ZombieLoad'
+* CVE-2018-3615 [L1 terminal fault] aka 'Foreshadow (SGX)'
+* CVE-2018-3620 [L1 terminal fault] aka 'Foreshadow-NG (OS)'
+* CVE-2018-3639 [speculative store bypass] aka 'Variant 4'
+* CVE-2018-3640 [rogue system register read] aka 'Variant 3a'
+* CVE-2018-3646 [L1 terminal fault] aka 'Foreshadow-NG (VMM)'
+* CVE-2019-11091 [microarchitectural data sampling uncacheable memory (MDSUM)] aka 'RIDL'
+
+For Linux, the module uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
+
+### Detection on Windows
+
+On Windows, the module detects the following vulnerabilities (listed in alphabetical order):
+
+* CVE-2017-5715 Spectre Variant 2 (Branch Target Injection)
+* CVE-2017-5753 Spectre Variant 1 (Bounds Check Bypass)
+* CVE-2017-5754 Spectre Variant 3 - also known as Meltdown (Rogue Data Cache Load)
+* CVE-2018-12126 Microarchitectural Store Buffer Data Sampling (MSBDS)
+* CVE-2018-12127 Microarchitectural Fill Buffer Data Sampling (MFBDS)
+* CVE-2018-12130 Microarchitectural Load Port Data Sampling (MLPDS)
+* CVE-2018-3620 Spectre Variant 'Foreshadow' (L1 Terminal Fault)
+* CVE-2018-3639 Spectre Variant 4 (Speculative Store Bypass)
+* CVE-2019-11091 Microarchitectural Data Sampling Uncacheable Memory (MDSUM)
+* CVE-2019-1125 Spectre variant 1 variant - SWAPGS
+
+For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.14 and the Get-WUInstall function from Michal Gajda - see https://github.com/noma4i/puppet-windows_updates. All credits to the authors for these awesome functions.
+
+### Usage Warnings
 
 *NOTE*: full remediation also requires patching your hardware and/or virtualization platforms. Please refer to specific instructions for your vendors and consider patches carefully before applying.
 
 *NOTE*: this module is provided in the hope it will be useful, but does not guarantee correct or complete detection or remediation of Meltdown / Spectre. Use it at your own discretion.
 
-The module uses some code created by others, which we'd like to recognize here:
-
-For Linux, the module uses the script ``spectre-meltdown-checker.sh`` by Stéphane Lesimple - see https://github.com/speed47/spectre-meltdown-checker - all credits to him for that awesome script.
-
-For Windows, the module uses the SpeculationControl module for Powershell - see https://www.powershellgallery.com/packages/SpeculationControl/1.0.14 and the Get-WUInstall function from Michal Gajda - see https://github.com/noma4i/puppet-windows_updates. All credits to them for these awesome functions.
-
 ## Setup
 
-To get information (facts) only, just install the module on the puppetmaster (either manually or by adding it to Puppetfile). During the next puppet run, all connected agents will receive meltdown's facts definitions and will send meltdown's facts back to the puppetmaster.
+To get information (fact) only, just install the module on the Puppetmaster (either manually or by adding it to Puppetfile). During the next Puppet run, all connected agents will receive meltdown's fact definition and will send meltdown's fact back to the puppetmaster.
 
 This module includes two manifests to aid in some prerequisites that you can manage with Puppet.
 
@@ -46,7 +78,7 @@ Ensures the registry entries are present that are needed to enable the Spectre &
 
 ### Facts
 
-meltdown provides the following facts:
+meltdown provides the following fact:
 
 #### meltdown
 

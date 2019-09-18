@@ -1,14 +1,12 @@
 {
   "name": "timidri-meltdown",
-  "version": "0.9.5",
+  "version": "0.9.6",
   "author": "Dimitri Tischenko & Kevin Reeuwijk",
   "summary": "Detect and remediate Meltdown / Spectre vulnerability",
   "license": "Apache-2.0",
   "source": "https://github.com/timidri/puppet-meltdown",
   "issues_url": "https://github.com/timidri/puppet-meltdown/issues",
-  "dependencies": [
-
-  ],
+  "dependencies": [],
   "operatingsystem_support": [
     {
       "operatingsystem": "CentOS",

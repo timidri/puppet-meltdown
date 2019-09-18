@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.6
+
+**Features**
+
+* Linux
+  * Changed parameters of linux_update and windows_update tasks from Enum to Boolean
+  * Updated `spectre-meltdown-checker.sh` to v0.42 (16AUG2019)
+  * Updated README with full list of detected vulnerabilities
+
 ## Release 0.9.5
 
 **Features**
