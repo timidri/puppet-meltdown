@@ -1,0 +1,4 @@
+---
+vmpooler:
+  provisioner: vmpooler
+  images: ["centos-7-x86_64", "win-2016-x86_64"]
