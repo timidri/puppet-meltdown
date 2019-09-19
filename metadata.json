@@ -5,8 +5,11 @@
   "summary": "Detect and remediate Meltdown / Spectre vulnerability",
   "license": "Apache-2.0",
   "source": "https://github.com/timidri/puppet-meltdown",
+  "project_page": "https://github.com/timidri/puppet-meltdown",
   "issues_url": "https://github.com/timidri/puppet-meltdown/issues",
-  "dependencies": [],
+  "dependencies": [
+
+  ],
   "operatingsystem_support": [
     {
       "operatingsystem": "CentOS",
