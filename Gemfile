@@ -29,6 +29,7 @@ group :development do
   gem "puppet-module-win-dev-r#{minor_version}",       require: false, platforms: [:mswin, :mingw, :x64_mingw]
   gem 'puppet_litmus', git: 'https://github.com/puppetlabs/puppet_litmus.git'
   gem 'serverspec'
+  gem 'pry'
 end
 
 puppet_version = ENV['PUPPET_GEM_VERSION']
