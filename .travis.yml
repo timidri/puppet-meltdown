@@ -1,5 +1,5 @@
 ---
-dist: trusty
+dist: xenial
 language: ruby
 cache: bundler
 before_install:
@@ -37,18 +37,17 @@ matrix:
     -
       env: DEPLOY_TO_FORGE=yes
       stage: deploy
+    -
+      bundler_args: 
+      dist: trusty
+      rvm: 2.5.1
+      script: ["bundle exec rake 'litmus:provision[travis]'", "bundle exec rake 'limtus:install_agent'", "bundle exec rake litmus:install_module", "bundle exec rake litmus:parallel"]
+      services: docker
+      stage: acceptance
+      sudo: required
 branches:
   only:
     - master
     - /^v\d/
 notifications:
   email: false
-deploy:
-  provider: puppetforge
-  user: puppet
-  password:
-    secure: ""
-  on:
-    tags: true
-    all_branches: true
-    condition: "$DEPLOY_TO_FORGE = yes"

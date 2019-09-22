@@ -1,0 +1,24 @@
+Gemfile:
+  optional:
+    ":development":
+      - gem: "puppet_litmus"
+        git: "https://github.com/puppetlabs/puppet_litmus.git"
+      - gem: "serverspec"
+.rubocop.yml:
+  default_configs:
+    AllCops:
+      Exclude:
+        - ".bundle/**/*"
+.travis.yml:
+  includes:
+    - bundler_args:
+      dist: trusty
+      rvm: 2.5.1
+      script:
+        - bundle exec rake 'litmus:provision[travis]'
+        - bundle exec rake 'limtus:install_agent'
+        - bundle exec rake litmus:install_module
+        - bundle exec rake litmus:parallel
+      services: docker
+      sudo: required
+      stage: acceptance
