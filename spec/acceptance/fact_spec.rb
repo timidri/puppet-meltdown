@@ -18,17 +18,15 @@ end
 describe "testing meltdown fact on #{os[:family]}" do
   facter_path = 'production/modules/meltdown/lib/facter'
   facter_command = 'facter -p --json meltdown'
-  # rubocop:disable Metrics/LineLength
-  if os[:family] == 'windows'
-    command = "$env:FACTERLIB=\"$(puppet config print environmentpath)/#{facter_path}\"; #{facter_command}"
-  else
-    command = "FACTERLIB=$(puppet config print environmentpath)/#{facter_path} #{facter_command}"
-  end
-  # rubocop:enable Metrics/LineLength
+  command = if os[:family] == 'windows'
+              "$env:FACTERLIB=\"$(puppet config print environmentpath)/#{facter_path}\"; #{facter_command}"
+            else
+              "FACTERLIB=$(puppet config print environmentpath)/#{facter_path} #{facter_command}"
+            end
   result = run_shell(command)
   describe result do
-    its(:exit_code) { should eq 0 }
-    its(:stdout) { should be_valid_json }
-    its(:stdout) { should contain 'CVE-2017-5753' }
+    its(:exit_code) { is_expected.to eq 0 }
+    its(:stdout) { is_expected.to be_valid_json }
+    its(:stdout) { is_expected.to contain 'CVE-2017-5753' }
   end
 end
