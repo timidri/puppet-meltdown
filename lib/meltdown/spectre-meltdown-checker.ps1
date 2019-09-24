@@ -137,11 +137,5 @@ If ($PSVersionTable.PSVersion.Major -gt 2) {
     Add-SpectreVariants
     $arrCVE | ConvertTo-Json
 } Else {
-    '{"CVE-2018-12130":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5715":{"error":"Unable to check
- on Powershell 2.0, need at least 3.0"},"CVE-2018-3620":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CV
-E-2019-11091":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-3639":{"error":"Unable to check on 
-Powershell 2.0, need at least 3.0"},"CVE-2019-1125":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-20
-18-12127":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5753":{"error":"Unable to check on Powe
-rshell 2.0, need at least 3.0"},"CVE-2017-5754":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-1
-2126":{"error":"Unable to check on Powershell 2.0, need at least 3.0"}}'
+    '{"CVE-2018-12130":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5715":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-3620":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2019-11091":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-3639":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2019-1125":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-12127":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5753":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5754":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-12126":{"error":"Unable to check on Powershell 2.0, need at least 3.0"}}'
 }
