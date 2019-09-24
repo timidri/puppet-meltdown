@@ -1,11 +1,12 @@
 #!/bin/bash
-# usage: test_meltdown_fact [test|acceptance]
+# usage: test_meltdown_fact [test|acceptance|travis]
 # without arguments, scope is "test"
 scope=${1:-"test"}
 # install gems
-bundle install --path .bundle/gems/
+bundle install
 # provision nodes for testing scope
 bundle exec rake "litmus:provision_list[${scope}]"
+[ $scope == "travis" ] && bolt task run package name=curl action=install --nodes all --modulepath=spec/fixtures/modules --inventory=./inventory.yaml
 # install puppet agent on the nodes
 bundle exec rake litmus:install_agent
 # install the meltdown module on the nodes

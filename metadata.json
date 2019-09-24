@@ -8,7 +8,14 @@
   "project_page": "https://github.com/timidri/puppet-meltdown",
   "issues_url": "https://github.com/timidri/puppet-meltdown/issues",
   "dependencies": [
-
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 5.0.0 < 6.2.0"
+    },
+    {
+      "name": "puppetlabs/registry",
+      "version_requirement": ">= 2.0.0 < 2.2.0"
+    }
   ],
   "operatingsystem_support": [
     {
@@ -70,6 +77,6 @@
     }
   ],
   "pdk-version": "1.13.0",
-  "template-url": "pdk-default#1.13.0",
-  "template-ref": "1.13.0-0-g66e1443"
+  "template-url": "https://github.com/puppetlabs/pdk-templates#master",
+  "template-ref": "heads/master-0-g0b2ac90"
 }

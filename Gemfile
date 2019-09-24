@@ -28,7 +28,7 @@ group :development do
   gem "puppet-module-posix-dev-r#{minor_version}", '~> 0.3',     require: false, platforms: [:ruby]
   gem "puppet-module-win-default-r#{minor_version}", '~> 0.3',   require: false, platforms: [:mswin, :mingw, :x64_mingw]
   gem "puppet-module-win-dev-r#{minor_version}", '~> 0.3',       require: false, platforms: [:mswin, :mingw, :x64_mingw]
-  gem "puppet_litmus",                                           require: false, git: 'https://github.com/puppetlabs/puppet_litmus.git'
+  gem "puppet_litmus",                                           require: false, git: 'https://github.com/tphoney/puppet_litmus.git', branch: 'FM-8494', platforms: [:ruby, :mswin, :mingw, :x64_mingw] if ENV['PUPPET_GEM_VERSION'].nil? or ENV['PUPPET_GEM_VERSION'] !~ %r{ 5}
   gem "serverspec",                                              require: false
 end
 
