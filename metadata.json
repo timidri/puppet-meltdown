@@ -5,8 +5,18 @@
   "summary": "Detect and remediate Meltdown / Spectre vulnerability",
   "license": "Apache-2.0",
   "source": "https://github.com/timidri/puppet-meltdown",
+  "project_page": "https://github.com/timidri/puppet-meltdown",
   "issues_url": "https://github.com/timidri/puppet-meltdown/issues",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 5.0.0 < 6.2.0"
+    },
+    {
+      "name": "puppetlabs/registry",
+      "version_requirement": ">= 2.0.0 < 2.2.0"
+    }
+  ],
   "operatingsystem_support": [
     {
       "operatingsystem": "CentOS",
@@ -66,7 +76,7 @@
       "version_requirement": ">= 4.7.0 < 7.0.0"
     }
   ],
-  "pdk-version": "1.10.0",
-  "template-url": "file:///opt/puppetlabs/pdk/share/cache/pdk-templates.git#1.10.0",
-  "template-ref": "1.10.0-0-gbba9ac3"
+  "pdk-version": "1.13.0",
+  "template-url": "https://github.com/puppetlabs/pdk-templates#master",
+  "template-ref": "heads/master-0-g0b2ac90"
 }

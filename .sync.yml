@@ -1,0 +1,27 @@
+Gemfile:
+  optional:
+    ":development":
+      - gem: "puppet_litmus"
+        git: "https://github.com/tphoney/puppet_litmus.git"
+        branch: "FM-8494"
+        require: false
+        # platforms: "[:ruby, :mswin, :mingw, :x64_mingw] if ENV['PUPPET_GEM_VERSION'].nil? or ENV['PUPPET_GEM_VERSION'] !~ %r{ 5}"
+      - gem: "serverspec"
+.rubocop.yml:
+  default_configs:
+    AllCops:
+      Exclude:
+        - ".bundle/**/*"
+.travis.yml:
+  includes:
+    - bundler_args:
+      dist: trusty
+      rvm: 2.5.3
+      script:
+        - bundle exec rake 'litmus:provision_list[travis]'
+        - bundle exec rake 'limtus:install_agent'
+        - bundle exec rake 'litmus:install_module'
+        - bundle exec rake 'litmus:parallel'
+      services: docker
+      sudo: required
+      stage: acceptance

@@ -45,9 +45,9 @@ def json_stub
 end
 
 Facter.add('meltdown') do
-  confine :virtual do |virtual|
-    virtual != 'docker'
-  end
+  # confine :virtual do |virtual|
+  #   virtual != 'docker'
+  # end
   confine :kernel do |kernel|
     kernel == 'darwin' || kernel == 'linux'
   end
