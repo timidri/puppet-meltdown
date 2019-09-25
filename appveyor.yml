@@ -32,4 +32,6 @@ before_test:
   - bundle -v
 
 test_script:
+  - ps: pdk build --force
+  - ps: puppet module install pkg/*gz
   - ps: $env:TARGET_HOST="localhost";bundle exec rspec spec/acceptance
