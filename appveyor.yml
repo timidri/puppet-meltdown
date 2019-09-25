@@ -1,56 +1,35 @@
 ---
-version: 1.1.x.{build}
+image: Visual Studio 2017
+
+cache:
+  - vendor/bundle
+
 branches:
   only:
     - master
-    - release
-skip_commits:
-  message: /^\(?doc\)?.*/
-clone_depth: 10
-init:
-  - SET
-  - 'mkdir C:\ProgramData\PuppetLabs\code && exit 0'
-  - 'mkdir C:\ProgramData\PuppetLabs\facter && exit 0'
-  - 'mkdir C:\ProgramData\PuppetLabs\hiera && exit 0'
-  - 'mkdir C:\ProgramData\PuppetLabs\puppet\var && exit 0'
+
 environment:
   matrix:
-    -
-      RUBY_VERSION: 24-x64
-      CHECK: syntax lint metadata_lint check:symlinks check:git_ignore check:dot_underscore check:test_file rubocop
-    -
-      PUPPET_GEM_VERSION: ~> 5.0
-      RUBY_VERSION: 24
-      CHECK: parallel_spec
-    -
-      PUPPET_GEM_VERSION: ~> 5.0
-      RUBY_VERSION: 24-x64
-      CHECK: parallel_spec
-    -
-      PUPPET_GEM_VERSION: ~> 6.0
-      RUBY_VERSION: 25
-      CHECK: parallel_spec
-    -
-      PUPPET_GEM_VERSION: ~> 6.0
-      RUBY_VERSION: 25-x64
-      CHECK: parallel_spec
+    - RUBY_VERSION: "25-x64"
+
+# scripts that are called at very beginning, before repo cloning
+init:
+  - ps: Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem -Name LongPathsEnabled -Value 1 -Type DWord
+
 matrix:
-  fast_finish: true
+  fast_finish: false
+
 install:
   - set PATH=C:\Ruby%RUBY_VERSION%\bin;%PATH%
-  - bundle install --jobs 4 --retry 2 --without system_tests
-  - type Gemfile.lock
-build: off
-test_script:
-  - bundle exec puppet -V
+  - bundle config --local path vendor/bundle
+  - bundle install
+
+build: "off"
+
+before_test:
   - ruby -v
   - gem -v
   - bundle -v
-  - bundle exec rake %CHECK%
-notifications:
-  - provider: Email
-    to:
-      - nobody@nowhere.com
-    on_build_success: false
-    on_build_failure: false
-    on_build_status_changed: false
+
+test_script:
+  - TARGET_HOST=localhost bundle exec rspec ./spec/acceptance
