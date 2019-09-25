@@ -32,4 +32,4 @@ before_test:
   - bundle -v
 
 test_script:
-  - bundle exec rspec spec/acceptance
+  - ps: $env:TARGET_HOST="localhost";bundle exec rspec spec/acceptance
