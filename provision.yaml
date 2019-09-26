@@ -2,8 +2,8 @@
 test:
   provisioner: vmpooler
   images:
-    - "centos-7-x86_64"
-    - "win-2016-x86_64"
+    - "debian-8-x86_64"
+    - "win-2012r2-x86_64"
 acceptance:
   provisioner: vmpooler
   images:
@@ -33,4 +33,4 @@ travis:
   provisioner: docker
   images:
     - "centos:7"
-    - "debian:9"
+    - "debian:8"
