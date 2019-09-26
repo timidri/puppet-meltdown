@@ -32,4 +32,5 @@ before_test:
   - bundle -v
 
 test_script:
-  - ps: $env:TARGET_HOST="localhost";bundle exec rspec spec/acceptance
+  - ps: puppet config set modulepath ".."
+  - ps: $env:TARGET_HOST="localhost"; bundle exec rspec spec/acceptance
