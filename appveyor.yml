@@ -32,5 +32,6 @@ before_test:
   - bundle -v
 
 test_script:
+  - ps: New-Item -ItemType file C:/ProgramData/PuppetLabs/puppet/etc/puppet.conf
   - ps: bundle exec puppet config set modulepath ".."
   - ps: $env:TARGET_HOST="localhost"; bundle exec rspec spec/acceptance
