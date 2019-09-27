@@ -1,8 +1,7 @@
 Function Add-SpectreVariants {
     If ($PSVersionTable.PSVersion.Major -gt 2) {
         #This function adds CVE's for Spectre variants 1,2 and 3 (Meltdown)
-        $ScriptDir = Split-Path -parent $MyInvocation.MyCommand.Path
-        Import-Module $ScriptDir/SpeculationControl.psd1
+        Import-Module $PSScriptRoot/SpeculationControl.psd1
         $SpeculationControl = Get-SpeculationControlSettings -Quiet
 
         if ([Environment]::OSVersion.Version.Major -ge 6) {
