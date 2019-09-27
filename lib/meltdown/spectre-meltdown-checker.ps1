@@ -1,7 +1,7 @@
 Function Add-SpectreVariants {
     If ($PSVersionTable.PSVersion.Major -gt 2) {
         #This function adds CVE's for Spectre variants 1,2 and 3 (Meltdown)
-        Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\meltdown\SpeculationControl.psd1
+        Import-Module SpeculationControl.psd1
         $SpeculationControl = Get-SpeculationControlSettings -Quiet
 
         if ([Environment]::OSVersion.Version.Major -ge 6) {
