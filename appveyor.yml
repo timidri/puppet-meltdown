@@ -34,5 +34,5 @@ before_test:
 test_script:
   - ps: New-Item -ItemType Directory -Force -Path C:/ProgramData/PuppetLabs/puppet/etc
   - ps: New-Item -ItemType File C:/ProgramData/PuppetLabs/puppet/etc/puppet.conf
-  - ps: bundle exec puppet config set basemodulepath "C:/Users/Administrator"
+  - ps: bundle exec puppet config set basemodulepath $env:APPVEYOR_BUILD_FOLDER
   - ps: $env:TARGET_HOST="localhost"; bundle exec rspec spec/acceptance
