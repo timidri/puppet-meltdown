@@ -35,6 +35,6 @@ test_script:
   - ps: New-Item -ItemType Directory -Force -Path C:/ProgramData/PuppetLabs/puppet/etc
   - ps: New-Item -ItemType File C:/ProgramData/PuppetLabs/puppet/etc/puppet.conf
   - ps: Write-Host $env:APPVEYOR_BUILD_FOLDER
-  - ps: Write-Host (get-item $env:APPVEYOR_BUILD_FOLDER).parent
-  - ps: bundle exec puppet config set basemodulepath (get-item $env:APPVEYOR_BUILD_FOLDER).parent
+  - ps: Write-Host (get-item $env:APPVEYOR_BUILD_FOLDER).parent.FullName
+  - ps: bundle exec puppet config set basemodulepath (get-item $env:APPVEYOR_BUILD_FOLDER).parent.FullName
   - ps: $env:TARGET_HOST="localhost"; bundle exec rspec spec/acceptance
