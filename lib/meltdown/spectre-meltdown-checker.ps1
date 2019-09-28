@@ -149,5 +149,5 @@ If ($PSVersionTable.PSVersion.Major -gt 2) {
     foreach ($cve in $cveIds) {
         $arrCVE.Add($cve, @{"error" = "Unable to check on Powershell 2.0, need at least 3.0"})
     }
-    $arrCVE | ConvertTo-Json20
+    ConvertTo-Json20($arrCVE) | Write-Host
 }
