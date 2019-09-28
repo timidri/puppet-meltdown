@@ -29,6 +29,11 @@ windows:
     - "win-2008-x86_64"
     - "win-2008r2-x86_64"
     - "win-10-pro-x86_64"
+win2008:
+  provisioner: vmpooler
+  images:
+    - "win-2008-x86_64"
+    - "win-2008r2-x86_64"
 travis:
   provisioner: docker
   images:
