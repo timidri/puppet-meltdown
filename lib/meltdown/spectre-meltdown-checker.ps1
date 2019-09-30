@@ -1,7 +1,7 @@
 Function Add-SpectreVariants {
     If ($PSVersionTable.PSVersion.Major -gt 2) {
         #This function adds CVE's for Spectre variants 1,2 and 3 (Meltdown)
-        Import-Module $ENV:ProgramData\PuppetLabs\puppet\cache\lib\meltdown\SpeculationControl.psd1
+        Import-Module $PSScriptRoot/SpeculationControl.psd1
         $SpeculationControl = Get-SpeculationControlSettings -Quiet
 
         if ([Environment]::OSVersion.Version.Major -ge 6) {
@@ -137,5 +137,11 @@ If ($PSVersionTable.PSVersion.Major -gt 2) {
     Add-SpectreVariants
     $arrCVE | ConvertTo-Json
 } Else {
-    Write-Host '{"CVE-2018-12130":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5715":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-3620":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2019-11091":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-3639":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2019-1125":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-12127":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5753":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2017-5754":{"error":"Unable to check on Powershell 2.0, need at least 3.0"},"CVE-2018-12126":{"error":"Unable to check on Powershell 2.0, need at least 3.0"}}'
+    $arrCVE = @()
+    $cveIds=@("CVE-2018-12130", "CVE-2017-5715", "CVE-2018-3620", "CVE-2019-11091", "CVE-2018-3639", 
+              "CVE-2019-1125", "CVE-2018-12127", "CVE-2017-5753", "CVE-2017-5754", "CVE-2018-12126")
+    foreach ($cve in $cveIds) {
+		$arrCVE += "`"$cve`": {`"error`": `"Unable to check on Powershell 2.0, need at least 3.0`"}"
+    }
+    "{" + ($arrCVE -join ",") + "}" | Write-Host
 }
