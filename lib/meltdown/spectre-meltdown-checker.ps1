@@ -141,7 +141,7 @@ If ($PSVersionTable.PSVersion.Major -gt 2) {
     $cveIds=@("CVE-2018-12130", "CVE-2017-5715", "CVE-2018-3620", "CVE-2019-11091", "CVE-2018-3639", 
               "CVE-2019-1125", "CVE-2018-12127", "CVE-2017-5753", "CVE-2017-5754", "CVE-2018-12126")
     foreach ($cve in $cveIds) {
-		$arrCVE += "`"$cve`": {`"error`":  `"Unable to check on Powershell 2.0, need at least 3.0`"}"
+		$arrCVE += "`"$cve`": {`"error`": `"Unable to check on Powershell 2.0, need at least 3.0`"}"
     }
     "{" + ($arrCVE -join ",") + "}" | Write-Host
 }
