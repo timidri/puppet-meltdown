@@ -132,22 +132,16 @@ Function Add-SpectreVariants {
     }
 }
 
-function ConvertTo-Json20([object] $item){
-    add-type -assembly system.web.extensions
-    $ps_js=new-object system.web.script.serialization.javascriptSerializer
-    return $ps_js.Serialize($item)
-}
-
-$arrCVE = @{}
-
 If ($PSVersionTable.PSVersion.Major -gt 2) {
+    $arrCVE = @{}
     Add-SpectreVariants
     $arrCVE | ConvertTo-Json
 } Else {
+    $arrCVE = @()
     $cveIds=@("CVE-2018-12130", "CVE-2017-5715", "CVE-2018-3620", "CVE-2019-11091", "CVE-2018-3639", 
               "CVE-2019-1125", "CVE-2018-12127", "CVE-2017-5753", "CVE-2017-5754", "CVE-2018-12126")
     foreach ($cve in $cveIds) {
-        $arrCVE.Add($cve, @{"error" = "Unable to check on Powershell 2.0, need at least 3.0"})
+		$arrCVE += "`"$cve`": {`"error`":  `"Unable to check on Powershell 2.0, need at least 3.0`"}"
     }
-    ConvertTo-Json20($arrCVE) | Write-Host
+    "{" + ($arrCVE -join ",") + "}" | Write-Host
 }
