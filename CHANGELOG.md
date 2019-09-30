@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## Release 0.9.7
+
+**Features**
+
+* Windows
+  * Fixed the meltdown fact to also work on Windows 2008 / Powershell 2
+* Linux
+  * Acceptance-tested on Debian 9 and Ubuntu 16.04 and 18.04
+* Added acceptance test and Litmus support
+* Added acceptance test to the travis CI pipeline
+* Added appveyor CI pipeline to run acceptance test on Windows
+
 ## Release 0.9.6
 
 **Features**
