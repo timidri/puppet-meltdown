@@ -7,7 +7,7 @@ All notable changes to this project will be documented in this file.
 **Features**
 
 * Windows
-  * Fixed the meltdown fact to also work on Windows 2008 / Powershell 2
+  * Fixed the meltdown fact to also produce valid JSON on Windows 2008 / Powershell 2, although detection itself requires Powershell 3.0 or greater.
 * Linux
   * Acceptance-tested on Debian 9 and Ubuntu 16.04 and 18.04
 * Added acceptance test and Litmus support

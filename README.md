@@ -196,24 +196,8 @@ This task has no parameters.
 
 ## Limitations
 
-meltdown is tested on the following platforms:
-
-* Linux
-  * CentOS 7
-  * CentOS 6
-  * Debian 8 64 bits
-  * Debian 8 32 bits
-  * Ubuntu 14.04
-* Windows Server
-  * Windows Server 2008 SP2
-  * Windows Server 2008 R2
-  * Windows Server 2012
-  * Windows Server 2012 R2
-  * Windows Server 2016
-
 meltdown works on all Puppet Enterprise versions specified in the compatibility information, but tasks only work starting with 2017.3. You can use the tasks in this module with Puppet Bolt as well.
 
 ## Development
 
 Contributions for adding other platforms and improving remediation use cases are welcomed.
-
