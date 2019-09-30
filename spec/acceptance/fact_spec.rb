@@ -16,17 +16,14 @@ RSpec::Matchers.define :be_valid_json do
 end
 
 describe "testing meltdown fact on #{os[:family]}" do
-  facter_path = 'production/modules/meltdown/lib/facter'
-  facter_command = 'facter -p --json meltdown'
-  command = if os[:family] == 'windows'
-              "$env:FACTERLIB=\"$(puppet config print environmentpath)/#{facter_path}\"; #{facter_command}"
-            else
-              "FACTERLIB=$(puppet config print environmentpath)/#{facter_path} #{facter_command}"
-            end
-  result = run_shell(command)
+  result = run_shell('puppet facts')
   describe result do
     its(:exit_code) { is_expected.to eq 0 }
     its(:stdout) { is_expected.to be_valid_json }
-    its(:stdout) { is_expected.to contain 'CVE-2017-5753' }
+  end
+  facts = JSON.parse(result[:stdout])['values']
+  describe facts do
+    it { is_expected.to include 'meltdown' }
+    it { expect(facts['meltdown']).to include 'CVE-2017-5753' }
   end
 end

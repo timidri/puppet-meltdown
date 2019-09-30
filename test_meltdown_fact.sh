@@ -20,5 +20,6 @@ bundle exec rake litmus:acceptance:parallel
 if [ $? == 0 ]; then
   # tear down the nodes. Note: if the testing failed,
   # tear down is not done and needs to be done manually
+  echo "Tearing down test hosts..."
   bundle exec rake litmus:tear_down
 fi
